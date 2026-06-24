@@ -1,0 +1,5 @@
+@startuml
+[Shown Name] as AliasA
+[Other]
+AliasA --> [Other]
+@enduml

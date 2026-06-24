@@ -1,0 +1,6 @@
+@startuml
+header Rust page header
+title With title
+footer Rust page footer
+Alice -> Bob : hi
+@enduml

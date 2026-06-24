@@ -1,0 +1,6 @@
+@startuml
+legend right
+  Notes for reviewers
+end legend
+Alice -> Bob : ping
+@enduml

@@ -1,0 +1,6 @@
+@startuml
+package "Outer" {
+  [Inner]
+}
+[Ext] --> [Inner]
+@enduml

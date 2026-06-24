@@ -1,0 +1,5 @@
+@startuml
+component "Service" as Svc
+component Client
+Svc --> Client
+@enduml

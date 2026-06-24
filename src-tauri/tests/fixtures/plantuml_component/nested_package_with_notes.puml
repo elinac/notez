@@ -1,0 +1,80 @@
+@startuml
+
+skinparam defaultFontName "Microsoft YaHei"
+
+package "日历应用" {
+
+    package "数据层" {
+
+        [日历-日程管理模块] as DataLayer
+
+        note right of DataLayer
+            职责：
+            - 节日数据的存储
+            - 节日数据的查询
+            - 数据持久化
+        end note
+
+    }
+
+    package "业务层" {
+
+        [日历-日历同步模块] as SyncLayer
+
+        [日历-农历/黄历模块] as ConvertLayer
+
+        note right of SyncLayer
+            职责：
+            - 手动同步触发
+            - 数据更新流程
+        end note
+
+        note right of ConvertLayer
+            职责：
+            - 数据转换
+            - 类型识别
+        end note
+
+    }
+
+    package "展示层" {
+
+        [日历-日历视图渲染模块] as ViewLayer
+
+        note right of ViewLayer
+            职责：
+            - 节日信息展示
+            - 视图更新
+        end note
+
+    }
+
+}
+
+package "外部依赖" {
+
+    [云服务-数据同步] as CloudService
+
+    [CalendarProvider] as SystemProvider
+
+    note right of CloudService
+        职责：
+        - 数据获取
+        - 服务器接口调用
+    end note
+
+}
+
+CloudService --> SyncLayer : 提供JSON数据
+
+SyncLayer --> ConvertLayer : 调用数据转换
+
+ConvertLayer --> DataLayer : 传递转换后数据
+
+DataLayer --> SystemProvider : 存储/查询数据
+
+ViewLayer --> DataLayer : 查询节日数据
+
+SystemProvider --> ViewLayer : 返回查询结果
+
+@enduml

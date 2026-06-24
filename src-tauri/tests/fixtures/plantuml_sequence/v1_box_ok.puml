@@ -1,0 +1,7 @@
+@startuml
+box "Services" #LightBlue
+  participant A
+  participant B
+end box
+A -> B : hello
+@enduml

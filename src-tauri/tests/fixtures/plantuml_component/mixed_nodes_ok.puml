@@ -1,0 +1,5 @@
+@startuml
+[WebServer] --> [Database] : uses
+(API) --> [WebServer]
+[Cache] ..> [Database]
+@enduml

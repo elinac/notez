@@ -1,0 +1,248 @@
+@import "tailwindcss";
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  /* Suppress WebView2 (Windows) native scrollbar */
+  -ms-overflow-style: none;
+  background: transparent;
+}
+
+body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Hide webkit scrollbar on the root document level */
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+:root {
+  font-family: "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+  color: #0f0f0f;
+  background-color: transparent;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+  accent-color: AccentColor;
+  --notez-accent: AccentColor;
+  --notez-accent-fallback: #2563eb;
+}
+
+@supports not (color: AccentColor) {
+  :root {
+    accent-color: var(--notez-accent-fallback);
+    --notez-accent: var(--notez-accent-fallback);
+  }
+}
+
+/* App chrome: no text selection on labels/buttons (native convention) */
+button,
+[role="button"],
+nav,
+header,
+aside,
+.notez-chrome,
+.select-none {
+  user-select: none;
+}
+
+/* Mica-friendly shell surfaces (Win11); solid fallback on Win10 / browser */
+.notez-app-shell {
+  background-color: rgba(249, 250, 251, 0.78);
+}
+
+.notez-sidebar-rail {
+  background-color: rgba(243, 244, 246, 0.88);
+}
+
+.notez-panel {
+  background-color: rgba(255, 255, 255, 0.86);
+}
+
+.notez-tab-bar {
+  background-color: rgba(243, 244, 246, 0.9);
+}
+
+.notez-tab-active {
+  background-color: rgba(255, 255, 255, 0.95);
+  border-bottom-color: var(--notez-accent, var(--notez-accent-fallback));
+}
+
+.notez-sidebar-active {
+  background-color: var(--notez-accent, var(--notez-accent-fallback));
+  color: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color: #f6f6f6;
+    background-color: transparent;
+  }
+
+  .notez-app-shell {
+    background-color: rgba(32, 32, 32, 0.78);
+  }
+
+  .notez-sidebar-rail {
+    background-color: rgba(38, 38, 38, 0.88);
+  }
+
+  .notez-panel {
+    background-color: rgba(40, 40, 40, 0.86);
+  }
+
+  .notez-tab-bar {
+    background-color: rgba(38, 38, 38, 0.9);
+  }
+
+  .notez-tab-active {
+    background-color: rgba(48, 48, 48, 0.95);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/*
+ * 分屏右侧 Markdown 预览不在 .milkdown 内，会继承 :root 的浅色文字。
+ * PlantUML/Graphviz 的 SVG 若使用 fill:inherit / currentColor，会出现「方框填充消失、白字贴白底」。
+ * 强制浅色方案 + 正文色 + 保留作者填充色（含 Windows 高对比度）。
+ */
+.markdown-split-preview,
+.diagram-color-fix {
+  color-scheme: light;
+  color: #1c1c1c;
+  forced-color-adjust: none;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* 根因补强：Graphviz/PlantUML 的 SVG 常通过 currentColor / fill 继承表现颜色；在根 svg 上再锁一层，换文件/重挂 innerHTML 后也不依赖外层 div 继承链 */
+svg.plantuml-jar,
+svg.plantuml-rust {
+  color: #1c1c1c;
+  color-scheme: light;
+  forced-color-adjust: none;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  isolation: isolate;
+}
+
+/* Diagram zoom — split-pane preview toolbar (mirrors Crepe code block tools) */
+.markdown-split-preview .diagram-block {
+  background: #fff;
+}
+
+.markdown-split-preview .diagram-tools {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px 0;
+}
+
+.markdown-split-preview .diagram-tools-button-group {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.markdown-split-preview .diagram-tools-button-group button,
+.markdown-split-preview .diagram-tools-button-group .diagram-zoom-label {
+  background: #e8e8e8;
+  color: #49454f;
+  padding: 4px 10px;
+  cursor: default;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.markdown-split-preview .diagram-tools-button-group .diagram-zoom-label {
+  cursor: default;
+  min-width: 3.5em;
+  user-select: none;
+}
+
+.markdown-split-preview .diagram-tools-button-group button:hover {
+  background: #d8d8d8;
+}
+
+.markdown-split-preview .diagram-zoom-viewport {
+  overflow: auto;
+  max-width: 100%;
+}
+
+/* Diagram zoom — WYSIWYG Milkdown toolbar controls */
+.milkdown .milkdown-code-block .tools .tools-button-group .diagram-zoom-label {
+  background: var(--crepe-color-secondary, #e8e8e8);
+  color: var(--crepe-color-on-surface-variant, #49454f);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  font-family: var(--crepe-font-default, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.5em;
+  user-select: none;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.milkdown .milkdown-code-block:hover .tools-button-group .diagram-zoom-label {
+  opacity: 1;
+}
+
+.diagram-zoom-viewport {
+  overflow: auto;
+  max-width: 100%;
+}
+
+.diagram-zoom-content {
+  display: inline-block;
+  min-width: min-content;
+}

@@ -1,0 +1,4 @@
+@startuml
+title Rust engine title
+Alice -> Bob : hi
+@enduml

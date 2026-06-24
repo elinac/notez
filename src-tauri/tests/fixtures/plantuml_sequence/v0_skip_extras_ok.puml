@@ -1,0 +1,7 @@
+@startuml
+skinparam monochrome true
+participant "Display" as d
+alt foo
+A -> B : hi
+end
+@enduml

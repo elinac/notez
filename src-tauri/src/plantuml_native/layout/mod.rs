@@ -1,0 +1,12 @@
+//! 由 IR 计算几何布局。
+
+mod component;
+mod sequence;
+
+pub use component::{plan_component, ComponentGeom, EdgeGeom, NodeGeom};
+pub use sequence::{
+    participant_header_lines, plan_sequence, SequenceGeom, MESSAGE_ARROW_LIFELINE_INSET,
+    MESSAGE_LABEL_LINE_HEIGHT, PARTICIPANT_GAP_BELOW, PARTICIPANT_LINE_HEIGHT, PARTICIPANT_TOP_PAD,
+    SEQUENCE_ACTIVATION_BAR_WIDTH, SEQUENCE_DELAY_ROW_HEIGHT, SEQUENCE_DESTROY_ROW_HEIGHT,
+    SEQUENCE_LANE_INNER_WIDTH, SEQUENCE_SELF_MESSAGE_LOOP_DEPTH, SEQUENCE_SELF_MESSAGE_LOOP_OUT,
+};

@@ -1,0 +1,5 @@
+@startuml
+participant "服务 A" as sa
+participant "服务 B" as sb
+sa -> sb : ping
+@enduml

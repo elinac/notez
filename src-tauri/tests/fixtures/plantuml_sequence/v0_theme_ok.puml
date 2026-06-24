@@ -1,0 +1,4 @@
+@startuml
+!theme bluegray
+Service -> Client : notify
+@enduml

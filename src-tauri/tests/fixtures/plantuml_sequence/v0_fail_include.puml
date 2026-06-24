@@ -1,0 +1,4 @@
+!include other.puml
+@startuml
+A -> B : x
+@enduml

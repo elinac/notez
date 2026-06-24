@@ -1,0 +1,5 @@
+@startuml
+participant A
+A -> A : self-call
+A -> B : out
+@enduml
