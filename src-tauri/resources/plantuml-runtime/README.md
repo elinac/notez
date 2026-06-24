@@ -1,7 +1,7 @@
 # 随包 PlantUML 运行环境（JRE + plantuml.jar + Graphviz）
 
 打包前将本目录填齐，**开发**与 **`tauri build`** 会把内容打进安装包的 **`$RESOURCE/resources/plantuml-runtime/`**。  
-桌面端预览会 **优先** 用此处环境渲染（完整 PlantUML）；失败时再回退到前端的 Graphviz WASM 简渲染。
+桌面端预览通过 Tauri 调用此处 JRE + PlantUML + Graphviz 渲染 SVG；若本地管线失败，编辑器会显示错误提示（不再回退到浏览器 WASM）。
 
 ## 目录约定（与 `plantuml_runtime.rs` 一致）
 
@@ -54,10 +54,10 @@ LGPL 版 **不自带内置 Graphviz**，必须按上面方式提供 **`dot`**。
 
 分发 PlantUML、Temurin、Graphviz 时，请在产品文档中保留相应许可说明。
 
-## 排查：为何仍像 WASM 简渲染
+## 排查：PlantUML 渲染失败
 
 安装运行后，在 **可执行文件同目录**（与 `notez.exe` 相邻）会生成 **`notez-plantuml.log`**。  
-每次尝试本地渲染都会追加日志，包括 `resource_dir`、解析出的 `java`/`dot` 路径、是否存在、PlantUML 的 **stderr** 与退出码。若本地管线失败，前端会静默回退到 WASM，请以该日志为准。
+每次尝试本地渲染都会追加日志，包括 `resource_dir`、解析出的 `java`/`dot` 路径、是否存在、PlantUML 的 **stderr** 与退出码。若图表未显示，请以该日志为准。
 
 Windows 下若日志里出现类似「无法访问 jar、Invalid path」等，而路径以 **`\\?\`** 开头：这是系统 **扩展路径前缀**，部分 JVM 无法正确打开。本应用已在调用 `java -jar` 前将路径规范为普通 `D:\...` 形式（日志中可见 `normalized_*` 行）。
 

@@ -24,7 +24,6 @@
     "@milkdown/react": "^7.19.2",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-tabs": "^1.1.13",
-    "@sakirtemel/plantuml.js": "^1.0.1",
     "@tailwindcss/postcss": "^4.2.2",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-cli": "^2.4.1",
