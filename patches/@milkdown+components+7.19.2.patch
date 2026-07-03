@@ -1,8 +1,8 @@
 diff --git a/node_modules/@milkdown/components/lib/code-block/index.js b/node_modules/@milkdown/components/lib/code-block/index.js
-index cebb80c..24c59fb 100644
+index cebb80c..6a7a0b2 100644
 --- a/node_modules/@milkdown/components/lib/code-block/index.js
 +++ b/node_modules/@milkdown/components/lib/code-block/index.js
-@@ -357,6 +357,108 @@ const LanguagePicker = defineComponent({
+@@ -357,6 +357,258 @@ const LanguagePicker = defineComponent({
    }
  });
  
@@ -40,10 +40,16 @@ index cebb80c..24c59fb 100644
 +  setup(props) {
 +    const label = ref("100%");
 +    const getRoot = () => {
-+      var _a;
++      var _a, _b;
 +      const host = (_a = props.codemirrorHostRef.value) != null ? _a : null;
 +      const codeBlock = host == null ? void 0 : host.closest(".milkdown-code-block");
-+      return window.__notezDiagramZoom?.findRootFromCodeBlock(codeBlock ?? null) ?? null;
++      const fromBlock = (_b = window.__notezDiagramZoom) == null ? void 0 : _b.findRootFromCodeBlock(codeBlock ?? null);
++      if (fromBlock) return fromBlock;
++      const previewVal = readVueRef(props.preview);
++      if (previewVal instanceof Element && previewVal.classList.contains("diagram-preview")) {
++        return previewVal;
++      }
++      return null;
 +    };
 +    const refreshLabel = () => {
 +      const root = getRoot();
@@ -108,10 +114,154 @@ index cebb80c..24c59fb 100644
 +  }
 +});
 +
++const DiagramCopyButton = defineComponent({
++  props: {
++    codemirrorHostRef: {
++      type: Object,
++      required: true
++    },
++    preview: {
++      type: Object,
++      required: true
++    },
++    language: {
++      type: Object,
++      required: true
++    },
++    copyIcon: {
++      type: String,
++      required: true
++    },
++    copyText: {
++      type: String,
++      required: true
++    },
++    onCopy: {
++      type: Function,
++      required: true
++    },
++    text: {
++      type: String,
++      required: true
++    }
++  },
++  setup(props) {
++    var _a2;
++    const isDiagram = ref(false);
++    const mode = ref(((_a2 = window.__notezDiagramCopy) == null ? void 0 : _a2.getMode()) || "code");
++    const showMenu = ref(false);
++    const menuRootRef = ref();
++    const refreshIsDiagram = () => {
++      const previewVal = readVueRef(props.preview);
++      const languageVal = readVueRef(props.language);
++      isDiagram.value = isDiagramPreviewContent(previewVal) || isDiagramLanguage(languageVal);
++    };
++    watch(
++      () => [readVueRef(props.preview), readVueRef(props.language)],
++      refreshIsDiagram,
++      { immediate: true }
++    );
++    const getRoot = () => {
++      var _a, _b;
++      const host = (_a = props.codemirrorHostRef.value) != null ? _a : null;
++      const codeBlock = host == null ? void 0 : host.closest(".milkdown-code-block");
++      const fromBlock = (_b = window.__notezDiagramZoom) == null ? void 0 : _b.findRootFromCodeBlock(codeBlock ?? null);
++      if (fromBlock) return fromBlock;
++      const previewVal = readVueRef(props.preview);
++      if (previewVal instanceof Element && previewVal.classList.contains("diagram-preview")) {
++        return previewVal;
++      }
++      return null;
++    };
++    const runCopy = async (targetMode) => {
++      const api = window.__notezDiagramCopy;
++      mode.value = targetMode;
++      api == null ? void 0 : api.setMode(targetMode);
++      if (targetMode === "image") {
++        await (api == null ? void 0 : api.copyImage(getRoot()));
++      } else {
++        const ok = await Promise.resolve(api == null ? void 0 : api.copyCode(props.text));
++        if (ok) props.onCopy(props.text);
++      }
++      showMenu.value = false;
++    };
++    const onMainClick = () => runCopy(mode.value);
++    const onToggleMenu = (e) => {
++      e.preventDefault();
++      e.stopPropagation();
++      showMenu.value = !showMenu.value;
++    };
++    const clickAway = (e) => {
++      if (!showMenu.value) return;
++      const target = e.target;
++      const menuRoot = menuRootRef.value;
++      if (menuRoot && !menuRoot.contains(target)) showMenu.value = false;
++    };
++    onMounted(() => {
++      window.addEventListener("click", clickAway);
++    });
++    onUnmounted(() => {
++      window.removeEventListener("click", clickAway);
++    });
++    return () => {
++      if (!isDiagram.value) {
++        return /* @__PURE__ */ h(CopyButton, {
++          copyIcon: props.copyIcon,
++          copyText: props.copyText,
++          onCopy: props.onCopy,
++          text: props.text
++        });
++      }
++      const label = mode.value === "image" ? "\u590D\u5236\u56FE\u7247" : "\u590D\u5236\u4EE3\u7801";
++      return /* @__PURE__ */ h("div", { class: "diagram-copy-group", ref: menuRootRef }, [
++        /* @__PURE__ */ h(
++          "button",
++          {
++            type: "button",
++            class: "copy-button diagram-copy-main",
++            title: label,
++            "aria-label": label,
++            onClick: onMainClick
++          },
++          [/* @__PURE__ */ h(Icon, { icon: props.copyIcon })]
++        ),
++        /* @__PURE__ */ h(
++          "button",
++          {
++            type: "button",
++            class: "diagram-copy-caret",
++            title: "\u9009\u62E9\u590D\u5236\u65B9\u5F0F",
++            onClick: onToggleMenu
++          },
++          "\u25BE"
++        ),
++        showMenu.value ? /* @__PURE__ */ h("div", { class: "diagram-copy-menu" }, [
++          /* @__PURE__ */ h(
++            "div",
++            {
++              class: clsx("diagram-copy-menu-item", mode.value === "code" && "is-active"),
++              onClick: () => runCopy("code")
++            },
++            "\u590D\u5236\u4EE3\u7801"
++          ),
++          /* @__PURE__ */ h(
++            "div",
++            {
++              class: clsx("diagram-copy-menu-item", mode.value === "image" && "is-active"),
++              onClick: () => runCopy("image")
++            },
++            "\u590D\u5236\u56FE\u7247"
++          )
++        ]) : null
++      ]);
++    };
++  }
++});
++
  const PreviewPanel = defineComponent({
    props: {
      text: {
-@@ -375,13 +477,17 @@ const PreviewPanel = defineComponent({
+@@ -375,13 +627,17 @@ const PreviewPanel = defineComponent({
        type: Object,
        required: true
      },
@@ -130,7 +280,7 @@ index cebb80c..24c59fb 100644
      const previewRef = ref();
      watchEffect(() => {
        const previewContainer = previewRef.value;
-@@ -390,12 +496,16 @@ const PreviewPanel = defineComponent({
+@@ -390,12 +646,16 @@ const PreviewPanel = defineComponent({
          previewContainer.removeChild(previewContainer.firstChild);
        }
        const previewContent = preview.value;
@@ -148,7 +298,7 @@ index cebb80c..24c59fb 100644
        return /* @__PURE__ */ h("div", { class: "preview-panel" }, !previewOnlyMode.value && /* @__PURE__ */ h(Fragment, null, /* @__PURE__ */ h("div", { class: "preview-divider" }), /* @__PURE__ */ h("div", { class: "preview-label" }, config.previewLabel)), /* @__PURE__ */ h("div", { ref: previewRef, class: "preview" }));
      };
    }
-@@ -437,9 +547,11 @@ const CodeBlock = defineComponent({
+@@ -437,9 +697,11 @@ const CodeBlock = defineComponent({
      }
    },
    setup(props) {
@@ -161,22 +311,28 @@ index cebb80c..24c59fb 100644
      const codemirrorHostRef = ref();
      const preview = ref(null);
      onMounted(() => {
-@@ -486,6 +598,14 @@ const CodeBlock = defineComponent({
+@@ -486,8 +748,19 @@ const CodeBlock = defineComponent({
            getReadOnly: props.getReadOnly
          }
        ), /* @__PURE__ */ h("div", { class: "tools-button-group" }, /* @__PURE__ */ h(
+-        CopyButton,
 +        DiagramZoomButtons,
-+        {
+         {
 +          codemirrorHostRef,
 +          preview,
 +          language: props.language,
 +          previewPanelExpanded
 +        }
 +      ), /* @__PURE__ */ h(
-         CopyButton,
-         {
++        DiagramCopyButton,
++        {
++          codemirrorHostRef,
++          preview,
++          language: props.language,
            copyIcon: props.config.copyIcon,
-@@ -497,12 +617,19 @@ const CodeBlock = defineComponent({
+           copyText: props.config.copyText,
+           onCopy: (_a2 = props.config.onCopy) != null ? _a2 : empty,
+@@ -497,12 +770,19 @@ const CodeBlock = defineComponent({
          "button",
          {
            class: "preview-toggle-button",
@@ -198,7 +354,7 @@ index cebb80c..24c59fb 100644
                previewOnlyMode.value
              )
            }
-@@ -513,7 +640,7 @@ const CodeBlock = defineComponent({
+@@ -513,7 +793,7 @@ const CodeBlock = defineComponent({
            ref: codemirrorHostRef,
            class: clsx(
              "codemirror-host",
@@ -207,7 +363,7 @@ index cebb80c..24c59fb 100644
            )
          }
        ), /* @__PURE__ */ h(
-@@ -523,6 +650,7 @@ const CodeBlock = defineComponent({
+@@ -523,6 +803,7 @@ const CodeBlock = defineComponent({
            language: props.language,
            config: props.config,
            previewOnlyMode,

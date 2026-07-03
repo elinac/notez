@@ -40,16 +40,26 @@ const diagramLanguageAliases: Record<string, string[]> = {
   mermaid: ['mmd'],
 };
 
+/** Lazy loaders for diagram language syntax highlighting in fenced code blocks. */
+const diagramLanguageLoaders: Record<string, () => Promise<LanguageSupport>> = {
+  plantuml: () =>
+    import('./plantuml-offline/plantumlCodeMirror').then((m) => m.plantumlLanguageSupport()),
+};
+
 /**
  * CodeMirror language entries for registered diagram types.
- * No syntax highlighter — preview is handled by `codeBlockRenderPreview`.
+ * Preview is handled by `codeBlockRenderPreview`; edit mode uses syntax loaders above.
  */
 export function getDiagramCodeBlockLanguages(): LanguageDescription[] {
   return [...registry.keys()].map((name) =>
     LanguageDescription.of({
       name,
       alias: diagramLanguageAliases[name] ?? [],
-      load: () => Promise.resolve(undefined as unknown as LanguageSupport),
+      load: () => {
+        const loader = diagramLanguageLoaders[name];
+        if (loader) return loader();
+        return Promise.resolve(undefined as unknown as LanguageSupport);
+      },
     })
   );
 }

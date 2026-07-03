@@ -36,6 +36,40 @@ interface TestState {
   message: string;
 }
 
+function SettingsSelect<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+  wrapperClassName = 'mb-2',
+}: {
+  label: string;
+  value: T;
+  options: readonly { value: T; label: string }[];
+  onChange: (value: T) => void;
+  wrapperClassName?: string;
+}) {
+  return (
+    <>
+      <label className="block text-xs text-gray-500 mb-1">{label}</label>
+      <div className={`relative ${wrapperClassName}`}>
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value as T)}
+          className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs appearance-none pr-6 bg-white"
+        >
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+      </div>
+    </>
+  );
+}
+
 function PlantUmlBackendSwitch() {
   const { plantUmlBackend, setPlantUmlBackend } = useSettingsStore();
   return (
@@ -202,55 +236,27 @@ export function SettingsPanel() {
           文档主题主要作用于全屏（WYSIWYG）模式；源码模式按外观模式切换浅色/深色。
         </p>
 
-        <label className="block text-xs text-gray-500 mb-1">外观模式</label>
-        <div className="relative mb-2">
-          <select
-            value={editorColorMode}
-            onChange={(e) =>
-              setEditorColorMode(e.target.value as typeof editorColorMode)
-            }
-            className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs appearance-none pr-6 bg-white"
-          >
-            {EDITOR_COLOR_MODE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-        </div>
+        <SettingsSelect
+          label="外观模式"
+          value={editorColorMode}
+          options={EDITOR_COLOR_MODE_OPTIONS}
+          onChange={setEditorColorMode}
+        />
 
-        <label className="block text-xs text-gray-500 mb-1">文档主题</label>
-        <div className="relative mb-2">
-          <select
-            value={editorThemeId}
-            onChange={(e) => setEditorThemeId(e.target.value as typeof editorThemeId)}
-            className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs appearance-none pr-6 bg-white"
-          >
-            {EDITOR_THEME_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-        </div>
+        <SettingsSelect
+          label="文档主题"
+          value={editorThemeId}
+          options={EDITOR_THEME_OPTIONS}
+          onChange={setEditorThemeId}
+        />
 
-        <label className="block text-xs text-gray-500 mb-1">代码块语法高亮</label>
-        <div className="relative">
-          <select
-            value={codeBlockThemeId}
-            onChange={(e) => setCodeBlockThemeId(e.target.value)}
-            className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs appearance-none pr-6 bg-white"
-          >
-            {CODE_BLOCK_THEME_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-        </div>
+        <SettingsSelect
+          label="代码块语法高亮"
+          value={codeBlockThemeId}
+          options={CODE_BLOCK_THEME_OPTIONS}
+          onChange={setCodeBlockThemeId}
+          wrapperClassName=""
+        />
         <p className="text-[10px] text-gray-400 mt-2 leading-snug">
           代码块语法主题与编辑器明/暗独立，可自由组合。
         </p>
@@ -260,21 +266,13 @@ export function SettingsPanel() {
       <div className="flex-shrink-0 border-t border-gray-200 px-3 py-2 bg-gray-50">
         <div className="text-xs font-semibold text-gray-700 mb-1.5">PlantUML</div>
         {SHOW_PLANTUML_BACKEND_SWITCH && <PlantUmlBackendSwitch />}
-        <label className="block text-xs text-gray-500 mb-1">图表主题（图源中已写 !theme 时优先生效）</label>
-        <div className="relative">
-          <select
-            value={plantUmlThemeSelectValue}
-            onChange={(e) => setPlantUmlTheme(e.target.value)}
-            className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs appearance-none pr-6 bg-white"
-          >
-            {PLANTUML_THEME_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-        </div>
+        <SettingsSelect
+          label="图表主题（图源中已写 !theme 时优先生效）"
+          value={plantUmlThemeSelectValue}
+          options={PLANTUML_THEME_OPTIONS}
+          onChange={setPlantUmlTheme}
+          wrapperClassName=""
+        />
       </div>
 
       {/* Edit Modal */}

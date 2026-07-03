@@ -10,10 +10,8 @@ import { useAppStore, EditorMode } from '../store/useAppStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { useEffectiveEditorColorMode } from '../hooks/useEffectiveEditorColorMode';
 import { clampSplitRatio } from '../utils/splitPaneRatio';
-import {
-  buildCodeBlockSyntaxExtensions,
-  buildSourceEditorThemeExtensions,
-} from '../utils/editorThemeRuntime';
+import { getCodeBlockSyntaxExtension } from '../constants/codeBlockThemes';
+import { getSourceEditorChrome } from '../utils/editorThemeRuntime';
 import { getDiagramCodeBlockLanguages } from './diagramRenderers';
 import { Columns2, FileEdit, Wand2, List } from 'lucide-react';
 
@@ -69,8 +67,8 @@ export function MarkdownEditor({ content, onChange }: MarkdownEditorProps) {
       extensions: [
         basicSetup,
         markdown({ codeLanguages: [...languages, ...diagramLangs] }),
-        editorThemeCompartment.of(buildSourceEditorThemeExtensions(effectiveColorMode)),
-        codeBlockSyntaxCompartment.of(buildCodeBlockSyntaxExtensions(codeBlockThemeId)),
+        editorThemeCompartment.of(getSourceEditorChrome(effectiveColorMode)),
+        codeBlockSyntaxCompartment.of(getCodeBlockSyntaxExtension(codeBlockThemeId)),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             onChange(update.state.doc.toString());
@@ -97,22 +95,26 @@ export function MarkdownEditor({ content, onChange }: MarkdownEditorProps) {
     if (!view) return;
     view.dispatch({
       effects: [
-        editorThemeCompartment.reconfigure(
-          buildSourceEditorThemeExtensions(effectiveColorMode)
-        ),
-        codeBlockSyntaxCompartment.reconfigure(
-          buildCodeBlockSyntaxExtensions(codeBlockThemeId)
-        ),
+        editorThemeCompartment.reconfigure(getSourceEditorChrome(effectiveColorMode)),
+        codeBlockSyntaxCompartment.reconfigure(getCodeBlockSyntaxExtension(codeBlockThemeId)),
       ],
     });
   }, [effectiveColorMode, codeBlockThemeId]);
 
   useEffect(() => {
-    if (viewRef.current && viewRef.current.state.doc.toString() !== content) {
-      viewRef.current.dispatch({
-        changes: { from: 0, to: viewRef.current.state.doc.length, insert: content },
-      });
-    }
+    const view = viewRef.current;
+    if (!view) return;
+    const cmDoc = view.state.doc.toString();
+    if (cmDoc === content) return;
+
+    const sel = view.state.selection.main;
+    view.dispatch({
+      changes: { from: 0, to: cmDoc.length, insert: content },
+      selection: {
+        anchor: Math.min(sel.anchor, content.length),
+        head: Math.min(sel.head, content.length),
+      },
+    });
   }, [content]);
 
   const onSplitPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -226,14 +228,16 @@ export function MarkdownEditor({ content, onChange }: MarkdownEditorProps) {
         )}
 
         {/* WYSIWYG mode — Milkdown Crepe（条件渲染，不在 DOM 时销毁） */}
-        <div className={`h-full overflow-hidden ${showWysiwyg ? '' : 'hidden'}`}>
-          <WysiwygEditor
-            key={`${editorThemeId}-${effectiveColorMode}-${codeBlockThemeId}`}
-            content={content}
-            onChange={onChange}
-            scrollContainerRef={wysiwygContainerRef}
-          />
-        </div>
+        {showWysiwyg && (
+          <div className="h-full overflow-hidden">
+            <WysiwygEditor
+              key={`${editorThemeId}-${effectiveColorMode}-${codeBlockThemeId}`}
+              content={content}
+              onChange={onChange}
+              scrollContainerRef={wysiwygContainerRef}
+            />
+          </div>
+        )}
 
         {/* Source / Split mode — CodeMirror（始终保留在 DOM，用 hidden 隐藏以保持 EditorView） */}
         <div

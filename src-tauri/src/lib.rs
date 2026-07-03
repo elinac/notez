@@ -16,27 +16,24 @@ pub fn run() {
 
     #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
     {
-        builder = builder.plugin(tauri_plugin_window_state::Builder::default().build());
-    }
-
-    #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
-    {
-        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            for arg in argv.iter().skip(1) {
-                let trimmed = arg.trim();
-                if trimmed.is_empty() {
-                    continue;
+        builder = builder
+            .plugin(tauri_plugin_window_state::Builder::default().build())
+            .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+                for arg in argv.iter().skip(1) {
+                    let trimmed = arg.trim();
+                    if trimmed.is_empty() {
+                        continue;
+                    }
+                    let lower = trimmed.to_lowercase();
+                    if lower.ends_with(".md") || lower.ends_with(".markdown") {
+                        let _ = app.emit("open-markdown-path", trimmed.to_string());
+                        break;
+                    }
                 }
-                let lower = trimmed.to_lowercase();
-                if lower.ends_with(".md") || lower.ends_with(".markdown") {
-                    let _ = app.emit("open-markdown-path", trimmed.to_string());
-                    break;
+                if let Some(w) = app.get_webview_window("main") {
+                    let _ = w.set_focus();
                 }
-            }
-            if let Some(w) = app.get_webview_window("main") {
-                let _ = w.set_focus();
-            }
-        }));
+            }));
     }
 
     builder

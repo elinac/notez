@@ -7,6 +7,13 @@ describe('getDiagramCodeBlockLanguages', () => {
     expect(names).toContain('mermaid');
     expect(names).toContain('plantuml');
   });
+
+  it('loads plantuml LanguageSupport for syntax highlighting', async () => {
+    const plantuml = getDiagramCodeBlockLanguages().find((l) => l.name === 'plantuml');
+    expect(plantuml).toBeDefined();
+    const support = await plantuml!.load();
+    expect(support?.language.name).toBe('plantuml');
+  });
 });
 
 describe('codeBlockRenderPreview', () => {

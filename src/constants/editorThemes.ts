@@ -4,6 +4,7 @@ import nordLight from '@milkdown/crepe/theme/nord.css?url';
 import nordDark from '@milkdown/crepe/theme/nord-dark.css?url';
 import crepeLight from '@milkdown/crepe/theme/classic.css?url';
 import crepeDark from '@milkdown/crepe/theme/classic-dark.css?url';
+import { normalizeOptionId } from '../utils/normalizeOptionId';
 
 export type EditorThemeId = 'frame' | 'nord' | 'crepe';
 export type EditorColorMode = 'light' | 'dark' | 'system';
@@ -39,15 +40,11 @@ const VALID_THEME_IDS = new Set<string>(EDITOR_THEME_OPTIONS.map((o) => o.value)
 const VALID_COLOR_MODES = new Set<string>(['light', 'dark', 'system']);
 
 export function normalizeEditorThemeId(raw: unknown): EditorThemeId {
-  return typeof raw === 'string' && VALID_THEME_IDS.has(raw)
-    ? (raw as EditorThemeId)
-    : DEFAULT_EDITOR_THEME_ID;
+  return normalizeOptionId(raw, VALID_THEME_IDS, DEFAULT_EDITOR_THEME_ID);
 }
 
 export function normalizeEditorColorMode(raw: unknown): EditorColorMode {
-  return typeof raw === 'string' && VALID_COLOR_MODES.has(raw)
-    ? (raw as EditorColorMode)
-    : DEFAULT_EDITOR_COLOR_MODE;
+  return normalizeOptionId(raw, VALID_COLOR_MODES, DEFAULT_EDITOR_COLOR_MODE);
 }
 
 export function getCrepeThemeCssUrl(

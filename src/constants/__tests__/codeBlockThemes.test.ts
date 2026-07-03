@@ -12,11 +12,9 @@ describe('codeBlockThemes', () => {
     expect(normalizeCodeBlockThemeId('nope')).toBe(DEFAULT_CODE_BLOCK_THEME_ID);
   });
 
-  it('每个注册主题返回 Extension 数组', () => {
+  it('每个注册主题返回 Extension', () => {
     for (const opt of CODE_BLOCK_THEME_OPTIONS) {
-      const ext = getCodeBlockSyntaxExtension(opt.value);
-      expect(ext).toBeTruthy();
-      expect(ext.length).toBeGreaterThan(0);
+      expect(getCodeBlockSyntaxExtension(opt.value)).toBeTruthy();
     }
   });
 });

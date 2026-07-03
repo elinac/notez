@@ -3,7 +3,7 @@
  * Used in WYSIWYG (Milkdown) and split-pane markdown preview.
  */
 
-export const DIAGRAM_ZOOM_STEP = 0.25;
+export const DIAGRAM_ZOOM_STEP = 0.05;
 export const DIAGRAM_ZOOM_MIN = 0.25;
 export const DIAGRAM_ZOOM_MAX = 3.0;
 export const DIAGRAM_ZOOM_DEFAULT = 1.0;
@@ -340,7 +340,10 @@ export function installDiagramZoomGlobalBridge(): void {
     formatScaleLabel,
     findRootFromCodeBlock(codeBlock: Element | null): HTMLElement | null {
       if (!codeBlock) return null;
-      return codeBlock.querySelector('[data-diagram-zoom-root]');
+      return (
+        codeBlock.querySelector<HTMLElement>('[data-diagram-zoom-root]') ??
+        codeBlock.querySelector<HTMLElement>('.diagram-preview')
+      );
     },
     getController(root: HTMLElement | null): DiagramZoomController | null {
       if (!root) return null;

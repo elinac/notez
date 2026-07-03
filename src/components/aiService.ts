@@ -143,6 +143,26 @@ export const AI_PROMPTS = {
   mermaid: (desc: string) =>
     `请根据以下描述生成一段 Mermaid 图表代码。只输出 Mermaid 代码块，不要其他说明：\n\n${desc}`,
 
+  /** Fix broken PlantUML source after render failure */
+  plantUMLFix: (source: string, error: string, line?: number) => {
+    const lineHint =
+      line !== undefined ? `错误约在第 ${line} 行。` : '未能定位具体行号。';
+    return `你是 PlantUML 语法修复专家。用户以下 PlantUML 代码渲染失败（${lineHint}）。
+
+错误信息：
+${error}
+
+请：
+1. 用简短中文说明错误原因（2-4 句）
+2. 给出修正后的完整 PlantUML 代码，放在唯一的 \`\`\`plantuml 代码块中
+3. 不要输出多个代码块，不要省略 @startuml / @enduml
+
+待修复源码：
+\`\`\`plantuml
+${source}
+\`\`\``;
+  },
+
   /** Free chat with context */
   chat: (systemPrompt: string) => systemPrompt,
 };

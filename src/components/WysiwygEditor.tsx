@@ -9,34 +9,12 @@ import { Crepe, CrepeFeature } from '@milkdown/crepe';
 import { replaceAll } from '@milkdown/utils';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { useEffectiveEditorColorMode } from '../hooks/useEffectiveEditorColorMode';
-import {
-  getCrepeThemeCssUrl,
-  type EditorThemeId,
-  type EffectiveEditorColorMode,
-} from '../constants/editorThemes';
-import { getCodeBlockSyntaxThemeExtension } from '../constants/codeBlockThemes';
+import { useCrepeThemeStylesheet } from '../hooks/useCrepeThemeStylesheet';
+import { getCodeBlockSyntaxExtension } from '../constants/codeBlockThemes';
 import { codeBlockRenderPreview, getDiagramCodeBlockLanguages } from './diagramRenderers';
 import { startWysiwygDiagramZoomObserver } from './diagramZoom';
+import { startWysiwygDiagramCopyObserver } from './diagramCopy';
 import '@milkdown/crepe/theme/common/style.css';
-
-const CREPE_LINK_ID = 'notez-crepe-theme-variant';
-
-function useCrepeThemeStylesheet(themeId: EditorThemeId, effective: EffectiveEditorColorMode) {
-  useEffect(() => {
-    const href = getCrepeThemeCssUrl(themeId, effective);
-    let link = document.getElementById(CREPE_LINK_ID) as HTMLLinkElement | null;
-    if (!link) {
-      link = document.createElement('link');
-      link.id = CREPE_LINK_ID;
-      link.rel = 'stylesheet';
-      document.head.appendChild(link);
-    }
-    link.href = href;
-    return () => {
-      link?.remove();
-    };
-  }, [themeId, effective]);
-}
 
 interface WysiwygEditorProps {
   content: string;
@@ -79,7 +57,7 @@ export function WysiwygEditor({ content, onChange, scrollContainerRef }: Wysiwyg
       languages: [...cmLanguages, ...diagramLanguages],
       previewOnlyByDefault: true,
       renderPreview: codeBlockRenderPreview,
-      theme: getCodeBlockSyntaxThemeExtension(codeBlockThemeId),
+      theme: getCodeBlockSyntaxExtension(codeBlockThemeId),
     };
 
     const crepe = new Crepe({
@@ -95,16 +73,19 @@ export function WysiwygEditor({ content, onChange, scrollContainerRef }: Wysiwyg
     });
 
     let stopZoomObserver: (() => void) | undefined;
+    let stopCopyObserver: (() => void) | undefined;
 
     crepe.create().then(() => {
       crepeRef.current = crepe;
       if (containerRef.current) {
         stopZoomObserver = startWysiwygDiagramZoomObserver(containerRef.current);
+        stopCopyObserver = startWysiwygDiagramCopyObserver(containerRef.current);
       }
     });
 
     return () => {
       stopZoomObserver?.();
+      stopCopyObserver?.();
       crepe.destroy();
       crepeRef.current = null;
     };

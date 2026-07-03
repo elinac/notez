@@ -34,19 +34,19 @@ describe('initDiagramZoom', () => {
     expect(ctrl.formatLabel()).toBe('100%');
   });
 
-  it('zoomIn increases by 25% steps', () => {
+  it('zoomIn increases by 5% steps', () => {
     const ctrl = initDiagramZoom(root);
     ctrl.zoomIn();
-    expect(ctrl.getScale()).toBe(1.25);
-    expect(ctrl.formatLabel()).toBe('125%');
+    expect(ctrl.getScale()).toBe(1.05);
+    expect(ctrl.formatLabel()).toBe('105%');
     ctrl.zoomIn();
-    expect(ctrl.getScale()).toBe(1.5);
+    expect(ctrl.getScale()).toBe(1.1);
   });
 
-  it('zoomOut decreases by 25% steps', () => {
+  it('zoomOut decreases by 5% steps', () => {
     const ctrl = initDiagramZoom(root);
     ctrl.zoomOut();
-    expect(ctrl.getScale()).toBe(0.75);
+    expect(ctrl.getScale()).toBe(0.95);
   });
 
   it('clamps at MIN and MAX', () => {
@@ -55,8 +55,8 @@ describe('initDiagramZoom', () => {
     expect(ctrl.getScale()).toBe(DIAGRAM_ZOOM_MIN);
 
     ctrl.reset();
-    for (let i = 0; i < 20; i++) ctrl.zoomIn();
-    expect(ctrl.getScale()).toBe(DIAGRAM_ZOOM_MAX);
+    for (let i = 0; i < 50; i++) ctrl.zoomIn();
+    expect(ctrl.getScale()).toBeCloseTo(DIAGRAM_ZOOM_MAX, 5);
   });
 
   it('reset returns to 100%', () => {

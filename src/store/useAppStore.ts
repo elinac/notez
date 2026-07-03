@@ -10,6 +10,11 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { NoteFile, createNewFile } from '../components/FileOperations';
 import { Task } from '../components/TaskBoard';
+import {
+  clampPanelWidth,
+  DEFAULT_AI_PANEL_WIDTH_PX,
+  DEFAULT_FILE_PANEL_WIDTH_PX,
+} from '../utils/panelWidth';
 import { clampSplitRatio, removeTabSplitRatio } from '../utils/splitPaneRatio';
 
 // ── View types ────────────────────────────────────────────────────────────────
@@ -18,6 +23,12 @@ export type EditorMode = 'split' | 'edit' | 'wysiwyg';
 export type SidebarPanel = 'files' | null;
 /** Right-side panel (AI assistant only; settings opens as a main-area tab) */
 export type RightPanel = 'ai' | null;
+
+export type PlantUmlFixRequest = {
+  source: string;
+  errorMessage: string;
+  errorLine?: number;
+};
 
 export const SETTINGS_TAB_ID = '__notez-settings__' as const;
 
@@ -80,12 +91,21 @@ interface AppState {
   sidebarPanel: SidebarPanel;
   /** Right-side panel (AI assistant) */
   rightPanel: RightPanel;
+  /** 文件树面板宽度（px，persist） */
+  filePanelWidth: number;
+  /** AI 面板宽度（px，persist） */
+  aiPanelWidth: number;
   /** Ordered list of workspace root directories */
   workspaceDirs: string[];
   /** Increment to signal FileExplorer to refresh the tree */
   fileTreeVersion: number;
   /** True once Zustand persist has rehydrated state from localStorage */
   _hasHydrated: boolean;
+
+  /** Pending PlantUML AI fix request (opens AI panel when set) */
+  plantUmlFixRequest: PlantUmlFixRequest | null;
+  /** Monotonic id so AiPanel dedupes Strict Mode / effect re-runs */
+  plantUmlFixRequestSeq: number;
 
   /** 分屏左侧占比（仅内存，不 persist） */
   splitPaneRatioByTabId: Record<string, number>;
@@ -118,6 +138,10 @@ interface AppState {
   // Sidebar / panel actions
   setSidebarPanel: (panel: SidebarPanel) => void;
   setRightPanel: (panel: RightPanel) => void;
+  setFilePanelWidth: (width: number) => void;
+  setAiPanelWidth: (width: number) => void;
+  requestPlantUmlAiFix: (req: PlantUmlFixRequest) => void;
+  clearPlantUmlFixRequest: () => void;
   /** Add a workspace root (no-op if already present) */
   addWorkspaceDir: (dir: string) => void;
   /** Remove a workspace root by path */
@@ -130,7 +154,14 @@ interface AppState {
 /** Shape written to localStorage by `partialize` (persist middleware). */
 type PersistedAppSlice = Pick<
   AppState,
-  'tabs' | 'activeTabId' | 'tasks' | 'editorMode' | 'workspaceDirs' | 'sidebarPanel'
+  | 'tabs'
+  | 'activeTabId'
+  | 'tasks'
+  | 'editorMode'
+  | 'workspaceDirs'
+  | 'sidebarPanel'
+  | 'filePanelWidth'
+  | 'aiPanelWidth'
 >;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -174,6 +205,10 @@ export const useAppStore = create<AppState>()(
         sidebarPanel: 'files',
         workspaceDirs: [],
         rightPanel: null,
+        filePanelWidth: DEFAULT_FILE_PANEL_WIDTH_PX,
+        aiPanelWidth: DEFAULT_AI_PANEL_WIDTH_PX,
+        plantUmlFixRequest: null,
+        plantUmlFixRequestSeq: 0,
         fileTreeVersion: 0,
         _hasHydrated: false,
         splitPaneRatioByTabId: {},
@@ -328,6 +363,15 @@ export const useAppStore = create<AppState>()(
         // Sidebar / panel actions
         setSidebarPanel: (panel) => set({ sidebarPanel: panel }),
         setRightPanel: (panel) => set({ rightPanel: panel }),
+        setFilePanelWidth: (width) => set({ filePanelWidth: clampPanelWidth(width) }),
+        setAiPanelWidth: (width) => set({ aiPanelWidth: clampPanelWidth(width) }),
+        requestPlantUmlAiFix: (req) =>
+          set((s) => ({
+            plantUmlFixRequest: req,
+            plantUmlFixRequestSeq: s.plantUmlFixRequestSeq + 1,
+            rightPanel: 'ai',
+          })),
+        clearPlantUmlFixRequest: () => set({ plantUmlFixRequest: null }),
         addWorkspaceDir: (dir) =>
           set((s) => ({
             workspaceDirs: s.workspaceDirs.includes(dir)
@@ -366,6 +410,14 @@ export const useAppStore = create<AppState>()(
           editorMode: p.editorMode ?? 'split',
           workspaceDirs: p.workspaceDirs ?? [],
           sidebarPanel: p.sidebarPanel ?? 'files',
+          filePanelWidth:
+            typeof p.filePanelWidth === 'number'
+              ? clampPanelWidth(p.filePanelWidth)
+              : DEFAULT_FILE_PANEL_WIDTH_PX,
+          aiPanelWidth:
+            typeof p.aiPanelWidth === 'number'
+              ? clampPanelWidth(p.aiPanelWidth)
+              : DEFAULT_AI_PANEL_WIDTH_PX,
         };
       },
       onRehydrateStorage: () => (state) => {
@@ -398,6 +450,8 @@ export const useAppStore = create<AppState>()(
           editorMode: state.editorMode,
           workspaceDirs: state.workspaceDirs,
           sidebarPanel: state.sidebarPanel,
+          filePanelWidth: state.filePanelWidth,
+          aiPanelWidth: state.aiPanelWidth,
         };
       },
     }

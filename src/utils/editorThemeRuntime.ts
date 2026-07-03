@@ -1,7 +1,6 @@
 import { EditorView } from '@codemirror/view';
 import type { Extension } from '@codemirror/state';
 import type { EditorColorMode, EffectiveEditorColorMode } from '../constants/editorThemes';
-import { getCodeBlockSyntaxExtension } from '../constants/codeBlockThemes';
 
 export function resolveEditorColorMode(
   mode: EditorColorMode,
@@ -32,12 +31,6 @@ const darkChrome = EditorView.theme(
   { dark: true }
 );
 
-export function buildSourceEditorThemeExtensions(
-  effective: EffectiveEditorColorMode
-): Extension[] {
-  return [effective === 'dark' ? darkChrome : lightChrome];
-}
-
-export function buildCodeBlockSyntaxExtensions(codeBlockThemeId: string): Extension[] {
-  return getCodeBlockSyntaxExtension(codeBlockThemeId);
+export function getSourceEditorChrome(effective: EffectiveEditorColorMode): Extension {
+  return effective === 'dark' ? darkChrome : lightChrome;
 }

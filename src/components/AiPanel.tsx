@@ -1,18 +1,37 @@
 /**
  * AiPanel — AI assistant sidebar panel
- * Supports streaming chat, quick actions (expand, summarize, generate diagram)
+ * Supports streaming chat, quick actions (expand, summarize, generate diagram),
+ * and PlantUML fix workflow (propose → confirm → apply → revert).
  */
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Sparkles, ChevronDown, StopCircle } from 'lucide-react';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { useAppStore } from '../store/useAppStore';
 import { streamChat, AI_PROMPTS, ChatMessage } from './aiService';
+import {
+  extractPlantUmlFromResponse,
+  findPlantUmlBlockSource,
+  replacePlantUmlBlock,
+} from '../utils/replacePlantUmlBlock';
+
+type PlantUmlFixStatus = 'pending' | 'applied' | 'reverted' | 'dismissed';
+
+type PlantUmlFixMeta = {
+  status: PlantUmlFixStatus;
+  originalSource: string;
+  proposedSource: string;
+  errorMessage: string;
+  errorLine?: number;
+};
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   streaming?: boolean;
+  plantUmlFix?: PlantUmlFixMeta;
+  /** When true, skip auto-append diagram code on done (fix flow). */
+  isPlantUmlFix?: boolean;
 }
 
 type QuickAction = 'expand' | 'summarize' | 'plantUML' | 'mermaid';
@@ -30,18 +49,32 @@ function genId() {
 
 export function AiPanel() {
   const { getActiveConfig, aiConfigs, activeAiConfigId, setActiveAiConfigId } = useSettingsStore();
-  const { content, setContent } = useAppStore();
+  const {
+    content,
+    setContent,
+    plantUmlFixRequest,
+    plantUmlFixRequestSeq,
+    clearPlantUmlFixRequest,
+  } = useAppStore();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
   const [showActions, setShowActions] = useState(false);
+  const [fixNotice, setFixNotice] = useState<string | null>(null);
   const abortRef = useRef<boolean>(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const streamingRef = useRef(false);
+  const lastHandledFixSeqRef = useRef(0);
+  const sendMessageRef = useRef<typeof sendMessage | null>(null);
+
+  useEffect(() => {
+    streamingRef.current = streaming;
+  }, [streaming]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'auto' });
-  }, [messages]);
+  }, [messages, fixNotice]);
 
   const activeConfig = getActiveConfig();
 
@@ -57,52 +90,183 @@ export function AiPanel() {
     );
   };
 
-  const sendMessage = async (userText: string, systemPrompt?: string) => {
-    if (!activeConfig) return;
-    if (streaming) return;
+  const sendMessage = useCallback(
+    async (
+      userText: string,
+      systemPrompt?: string,
+      options?: { isPlantUmlFix?: boolean; fixMeta?: Omit<PlantUmlFixMeta, 'status' | 'proposedSource'> }
+    ) => {
+      if (!activeConfig) return;
+      if (streamingRef.current) return;
 
-    const userMsg: Message = { id: genId(), role: 'user', content: userText };
-    const asstId = genId();
-    const asstMsg: Message = { id: asstId, role: 'assistant', content: '', streaming: true };
+      streamingRef.current = true;
+      const userMsg: Message = { id: genId(), role: 'user', content: userText };
+      const asstId = genId();
+      const asstMsg: Message = {
+        id: asstId,
+        role: 'assistant',
+        content: '',
+        streaming: true,
+        isPlantUmlFix: options?.isPlantUmlFix,
+      };
 
-    setMessages((prev) => [...prev, userMsg, asstMsg]);
-    setInput('');
-    setStreaming(true);
-    abortRef.current = false;
+      setMessages((prev) => [...prev, userMsg, asstMsg]);
+      setInput('');
+      setStreaming(true);
+      abortRef.current = false;
 
-    const chatMessages: ChatMessage[] = [
-      ...(systemPrompt ? [{ role: 'system' as const, content: systemPrompt }] : []),
-      ...messages
-        .filter((m) => !m.streaming)
-        .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
-      { role: 'user', content: userText },
-    ];
+      const chatMessages: ChatMessage[] = [
+        ...(systemPrompt ? [{ role: 'system' as const, content: systemPrompt }] : []),
+        ...messages
+          .filter((m) => !m.streaming)
+          .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+        { role: 'user', content: userText },
+      ];
 
-    await streamChat(activeConfig, chatMessages, {
-      onToken: (token) => {
-        if (abortRef.current) return;
-        appendAssistantMessage(asstId, token);
-      },
-      onDone: (fullText) => {
-        finalizeAssistantMessage(asstId);
-        setStreaming(false);
-        // Auto-insert diagram code into editor
-        if (systemPrompt?.includes('PlantUML') || systemPrompt?.includes('Mermaid')) {
-          const newContent = content + '\n\n' + fullText;
-          setContent(newContent);
-        }
-      },
-      onError: (err) => {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === asstId
-              ? { ...m, content: `❌ ${err.message}`, streaming: false }
-              : m
-          )
-        );
-        setStreaming(false);
-      },
+      await streamChat(activeConfig, chatMessages, {
+        onToken: (token) => {
+          if (abortRef.current) return;
+          appendAssistantMessage(asstId, token);
+        },
+        onDone: (fullText) => {
+          finalizeAssistantMessage(asstId);
+          setStreaming(false);
+          streamingRef.current = false;
+
+          if (options?.isPlantUmlFix && options.fixMeta) {
+            const proposed = extractPlantUmlFromResponse(fullText);
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === asstId
+                  ? {
+                      ...m,
+                      plantUmlFix: proposed
+                        ? {
+                            status: 'pending' as const,
+                            originalSource: options.fixMeta!.originalSource,
+                            proposedSource: proposed,
+                            errorMessage: options.fixMeta!.errorMessage,
+                            errorLine: options.fixMeta!.errorLine,
+                          }
+                        : undefined,
+                      content: proposed
+                        ? fullText
+                        : `${fullText}\n\n⚠️ 未能从回复中解析 PlantUML 代码块，请手动复制修复内容。`,
+                    }
+                  : m
+              )
+            );
+            return;
+          }
+
+          // Auto-insert diagram code into editor (generate flow only)
+          if (
+            systemPrompt?.includes('PlantUML') ||
+            systemPrompt?.includes('Mermaid')
+          ) {
+            const newContent = content + '\n\n' + fullText;
+            setContent(newContent);
+          }
+        },
+        onError: (err) => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === asstId
+                ? { ...m, content: `❌ ${err.message}`, streaming: false }
+                : m
+            )
+          );
+          setStreaming(false);
+          streamingRef.current = false;
+        },
+      });
+    },
+    [activeConfig, messages, content, setContent]
+  );
+
+  sendMessageRef.current = sendMessage;
+
+  // Auto-start PlantUML fix when requested from preview error UI
+  useEffect(() => {
+    if (!plantUmlFixRequest || !activeConfig) return;
+    if (plantUmlFixRequestSeq <= lastHandledFixSeqRef.current) return;
+    if (streamingRef.current) return;
+
+    lastHandledFixSeqRef.current = plantUmlFixRequestSeq;
+
+    const { source, errorMessage, errorLine } = plantUmlFixRequest;
+    clearPlantUmlFixRequest();
+    setFixNotice(null);
+
+    const linePart =
+      errorLine !== undefined ? `第 ${errorLine} 行` : '未知行';
+    const userSummary = `请修复以下 PlantUML 语法错误（${linePart}）`;
+
+    void sendMessageRef.current?.(userSummary, AI_PROMPTS.plantUMLFix(source, errorMessage, errorLine), {
+      isPlantUmlFix: true,
+      fixMeta: { originalSource: source, errorMessage, errorLine },
     });
+  }, [plantUmlFixRequest, plantUmlFixRequestSeq, activeConfig, clearPlantUmlFixRequest]);
+
+  const handleApplyFix = (msgId: string) => {
+    const msg = messages.find((m) => m.id === msgId);
+    const fix = msg?.plantUmlFix;
+    if (!fix || fix.status !== 'pending') return;
+
+    const updated = replacePlantUmlBlock(content, fix.originalSource, fix.proposedSource);
+    if (updated === content) {
+      setFixNotice('未找到匹配的 PlantUML 代码块，请手动替换。');
+      return;
+    }
+
+    setContent(updated);
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === msgId && m.plantUmlFix
+          ? { ...m, plantUmlFix: { ...m.plantUmlFix, status: 'applied' } }
+          : m
+      )
+    );
+    setFixNotice('已应用修复，预览将自动刷新。');
+  };
+
+  const handleDismissFix = (msgId: string) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === msgId && m.plantUmlFix
+          ? { ...m, plantUmlFix: { ...m.plantUmlFix, status: 'dismissed' } }
+          : m
+      )
+    );
+    setFixNotice(null);
+  };
+
+  const handleRevertFix = (msgId: string) => {
+    const msg = messages.find((m) => m.id === msgId);
+    const fix = msg?.plantUmlFix;
+    if (!fix || fix.status !== 'applied') return;
+
+    const currentBlock = findPlantUmlBlockSource(content, fix.proposedSource);
+    if (currentBlock === undefined) {
+      setFixNotice('源码已变更，无法自动回退，请手动恢复。');
+      return;
+    }
+
+    const reverted = replacePlantUmlBlock(content, fix.proposedSource, fix.originalSource);
+    if (reverted === content) {
+      setFixNotice('回退失败：未找到已应用的代码块。');
+      return;
+    }
+
+    setContent(reverted);
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === msgId && m.plantUmlFix
+          ? { ...m, plantUmlFix: { ...m.plantUmlFix, status: 'reverted' } }
+          : m
+      )
+    );
+    setFixNotice('已回退到修复前的 PlantUML 源码。');
   };
 
   const handleQuickAction = (action: QuickAction) => {
@@ -122,7 +286,6 @@ export function AiPanel() {
     const text = input.trim();
     if (!text || streaming || !activeConfig) return;
 
-    // Detect diagram generation intent
     const isPlantUML = text.includes('PlantUML') || text.includes('plantuml');
     const isMermaid = text.includes('Mermaid') || text.includes('mermaid') || text.includes('流程图');
 
@@ -138,9 +301,57 @@ export function AiPanel() {
   const handleStop = () => {
     abortRef.current = true;
     setStreaming(false);
+    streamingRef.current = false;
     setMessages((prev) =>
       prev.map((m) => (m.streaming ? { ...m, streaming: false } : m))
     );
+  };
+
+  const renderFixActions = (msg: Message) => {
+    const fix = msg.plantUmlFix;
+    if (!fix || msg.streaming) return null;
+
+    if (fix.status === 'pending') {
+      return (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            onClick={() => handleApplyFix(msg.id)}
+            className="px-2 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded transition-colors"
+          >
+            应用修复
+          </button>
+          <button
+            type="button"
+            onClick={() => handleDismissFix(msg.id)}
+            className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+          >
+            放弃
+          </button>
+        </div>
+      );
+    }
+
+    if (fix.status === 'applied') {
+      return (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-green-700">✓ 已应用修复</span>
+          <button
+            type="button"
+            onClick={() => handleRevertFix(msg.id)}
+            className="px-2 py-1 text-xs font-medium text-amber-800 bg-amber-100 hover:bg-amber-200 rounded transition-colors"
+          >
+            回退
+          </button>
+        </div>
+      );
+    }
+
+    if (fix.status === 'reverted') {
+      return <p className="mt-2 text-xs text-gray-500">已回退至修复前源码</p>;
+    }
+
+    return null;
   };
 
   if (!activeConfig && aiConfigs.length === 0) {
@@ -160,7 +371,6 @@ export function AiPanel() {
           <Sparkles size={13} className="text-blue-500" />
           <span className="text-xs font-semibold text-gray-700">AI 助手</span>
         </div>
-        {/* Provider selector */}
         <div className="relative">
           <select
             value={activeAiConfigId ?? aiConfigs[0]?.id ?? ''}
@@ -196,8 +406,14 @@ export function AiPanel() {
             {msg.streaming && (
               <span className="inline-block w-1.5 h-3 bg-blue-400 ml-0.5 animate-pulse" />
             )}
+            {msg.role === 'assistant' && renderFixActions(msg)}
           </div>
         ))}
+        {fixNotice && (
+          <p className="text-xs text-center text-gray-600 bg-gray-50 border border-gray-200 rounded px-2 py-1">
+            {fixNotice}
+          </p>
+        )}
         <div ref={bottomRef} />
       </div>
 

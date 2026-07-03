@@ -8,6 +8,7 @@ import {
   useSettingsStore,
   type PlantUmlBackend,
 } from '../../store/useSettingsStore';
+import { formatPlantUmlErrorHtml } from './plantumlErrorUi';
 
 function ensurePlantUMLWrapper(source: string): string {
   const t = source.trim();
@@ -33,14 +34,6 @@ export function applyPlantUmlTheme(wrappedSource: string, theme: string): string
   return next.join('\n');
 }
 
-function escapeHtmlText(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
 function toDisplayMessage(e: unknown): string {
   if (e instanceof Error) return e.message;
   if (typeof e === 'string') return e;
@@ -49,19 +42,6 @@ function toDisplayMessage(e: unknown): string {
   } catch {
     return String(e);
   }
-}
-
-function formatPlantUmlErrorHtml(message: string, source: string): string {
-  const safeMsg = escapeHtmlText(message);
-  const safeSourcePre = source.replace(/</g, '&lt;');
-  return `<div class="plantuml-error p-3 bg-red-50 border border-red-300 rounded text-sm">
-      <div class="font-medium text-red-800">❌ PlantUML 渲染失败</div>
-      <div class="text-red-600 text-xs mt-1 whitespace-pre-wrap break-words">${safeMsg}</div>
-      <details class="mt-1">
-        <summary class="text-red-700">查看源码</summary>
-        <pre class="mt-1 text-xs overflow-auto">${safeSourcePre}</pre>
-      </details>
-    </div>`;
 }
 
 /** 与根 svg 内联 style 同步：避免预览区继承 :root 暗色 color 导致 currentColor / fill:inherit 错乱 */
@@ -80,6 +60,27 @@ function svgRootClassForBackend(backend: PlantUmlBackend): string {
   return backend === 'rust'
     ? 'plantuml-output plantuml-svg plantuml-rust'
     : 'plantuml-output plantuml-svg plantuml-jar';
+}
+
+/** 去掉 JAR 输出的 plantuml / plantuml-src 元数据，避免 innerHTML 注入后变成非法注释。 */
+function stripPlantumlMetadataNodes(root: ParentNode): void {
+  const nodes = [...root.childNodes];
+  for (const child of nodes) {
+    if (child.nodeType === Node.PROCESSING_INSTRUCTION_NODE) {
+      child.parentNode?.removeChild(child);
+      continue;
+    }
+    if (child.nodeType === Node.COMMENT_NODE) {
+      const data = (child as Comment).data.trim();
+      if (/^\?plantuml/i.test(data)) {
+        child.parentNode?.removeChild(child);
+        continue;
+      }
+    }
+    if (child.nodeType === Node.ELEMENT_NODE) {
+      stripPlantumlMetadataNodes(child as Element);
+    }
+  }
 }
 
 function styleSvgMarkup(svg: string, backend: PlantUmlBackend): string {
@@ -118,6 +119,8 @@ function styleSvgMarkup(svg: string, backend: PlantUmlBackend): string {
     const prevClass = root.getAttribute('class') || '';
     root.setAttribute('class', prevClass ? `${prevClass} ${cls}` : cls);
 
+    stripPlantumlMetadataNodes(root);
+
     return new XMLSerializer().serializeToString(root);
   } catch {
     return legacyStyleSvgMarkup(svgOnly, cls);
@@ -125,7 +128,7 @@ function styleSvgMarkup(svg: string, backend: PlantUmlBackend): string {
 }
 
 /** 后处理 SVG（styleSvgMarkup）规则变更时递增，避免会话内缓存长期返回旧字符串（如缺少根节点 color 修复） */
-const PLANTUML_SVG_STYLE_REVISION = 1;
+const PLANTUML_SVG_STYLE_REVISION = 2;
 
 /** 成功渲染的 SVG 内存缓存：再次打开同一图源（同主题）时跳过 JVM，避免每次冷启动 */
 const SVG_CACHE_MAX = 48;

@@ -3,6 +3,7 @@ import { oneDark } from '@codemirror/theme-one-dark';
 import { githubLightInit } from '@uiw/codemirror-theme-github';
 import { monokaiInit } from '@uiw/codemirror-theme-monokai';
 import { draculaInit } from '@uiw/codemirror-theme-dracula';
+import { normalizeOptionId } from '../utils/normalizeOptionId';
 
 export const DEFAULT_CODE_BLOCK_THEME_ID = 'one-dark';
 
@@ -26,26 +27,21 @@ const SYNTAX_ONLY_SETTINGS = {
   lineHighlight: 'transparent',
 } as const;
 
-function syntaxOnly(init: (opts?: object) => Extension): Extension[] {
-  return [init({ settings: { ...SYNTAX_ONLY_SETTINGS } })];
+function syntaxOnly(init: (opts?: object) => Extension): Extension {
+  return init({ settings: { ...SYNTAX_ONLY_SETTINGS } });
 }
 
-const SYNTAX_FACTORIES: Record<string, () => Extension[]> = {
-  'one-dark': () => [oneDark],
-  'github-light': () => syntaxOnly(githubLightInit),
-  monokai: () => syntaxOnly(monokaiInit),
-  dracula: () => syntaxOnly(draculaInit),
+const SYNTAX_THEMES: Record<string, Extension> = {
+  'one-dark': oneDark,
+  'github-light': syntaxOnly(githubLightInit),
+  monokai: syntaxOnly(monokaiInit),
+  dracula: syntaxOnly(draculaInit),
 };
 
 export function normalizeCodeBlockThemeId(raw: unknown): string {
-  return typeof raw === 'string' && VALID_IDS.has(raw) ? raw : DEFAULT_CODE_BLOCK_THEME_ID;
+  return normalizeOptionId(raw, VALID_IDS, DEFAULT_CODE_BLOCK_THEME_ID);
 }
 
-export function getCodeBlockSyntaxExtension(id: string): Extension[] {
-  return SYNTAX_FACTORIES[normalizeCodeBlockThemeId(id)]();
-}
-
-/** Crepe CodeMirror feature expects a single Extension */
-export function getCodeBlockSyntaxThemeExtension(id: string): Extension {
-  return getCodeBlockSyntaxExtension(id)[0];
+export function getCodeBlockSyntaxExtension(id: string): Extension {
+  return SYNTAX_THEMES[normalizeCodeBlockThemeId(id)];
 }

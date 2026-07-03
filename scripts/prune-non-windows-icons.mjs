@@ -33,7 +33,9 @@ for (const name of ['icon.icns', '64x64.png', 'icon.png']) {
 
 const svgSrc = join(iconsDir, 'icon.svg');
 const svgDst = join(root, 'public/notez-icon.svg');
-if (existsSync(svgSrc)) {
+if (existsSync(svgSrc) && existsSync(dirname(svgDst))) {
   copyFileSync(svgSrc, svgDst);
   console.log('Synced public/notez-icon.svg');
+} else if (existsSync(svgSrc)) {
+  console.warn('Skipped syncing public/notez-icon.svg: public/ directory does not exist.');
 }

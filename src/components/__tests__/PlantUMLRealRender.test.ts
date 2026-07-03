@@ -190,6 +190,17 @@ describe('PlantUML Real Render (mock invoke)', () => {
     expect(result).toContain('PlantUML 退出码');
     expect(result).toContain('查看源码');
     expect(result).toContain('@startuml');
+    expect(result).toContain('plantuml-ai-fix-btn');
+    expect(result).toContain('AI 修复');
+  });
+
+  it('REAL-2b: JAR 错误含行号时展示行号徽章', async () => {
+    const msg = 'PlantUML 退出码 Some(200): ERROR\n3\nSyntax Error?';
+    vi.mocked(invoke).mockRejectedValue(new Error(msg));
+    const result = await renderPlantUMLOffline('@startuml\npackage"X"\n@enduml');
+    expect(result).toContain('plantuml-error__line-badge');
+    expect(result).toContain('第 3 行');
+    expect(result).toContain('plantuml-ai-fix-btn');
   });
 
   it('REAL-3: 输出非 SVG 时返回 plantuml-error', async () => {

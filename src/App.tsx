@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { MarkdownEditor } from "./components/MarkdownEditor";
 import { TaskBoardUI } from "./components/TaskBoardUI";
 import { Sidebar } from "./components/Sidebar";
@@ -6,6 +6,7 @@ import { FileExplorer } from "./components/FileExplorer";
 import { AiPanel } from "./components/AiPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { TabBar } from "./components/TabBar";
+import { PanelResizeHandle } from "./components/PanelResizeHandle";
 import { useAppStore, SETTINGS_TAB_ID, isFileTab } from "./store/useAppStore";
 import { useSettingsStore } from "./store/useSettingsStore";
 import {
@@ -17,7 +18,12 @@ import {
   openMarkdownFile,
   openMarkdownFileFromPath,
 } from "./components/FileOperations";
+import {
+  clampPanelWidthInLayout,
+  PANEL_RESIZE_GUTTER_PX,
+} from "./utils/panelWidth";
 import "./App.css";
+import { consumePlantUmlFixPayload } from "./components/plantuml-offline/plantumlErrorUi";
 
 function App() {
   const {
@@ -28,13 +34,81 @@ function App() {
     activeView,
     sidebarPanel,
     rightPanel,
+    filePanelWidth,
+    aiPanelWidth,
+    setFilePanelWidth,
+    setAiPanelWidth,
     loadFile, updateTabFile, refreshFileTree,
   } = useAppStore();
+
+  const panelsLayoutRef = useRef<HTMLDivElement>(null);
+  const showFilePanel = sidebarPanel === 'files';
+  const showAiPanel = rightPanel === 'ai';
+
+  const getLayoutWidth = useCallback(() => {
+    return panelsLayoutRef.current?.getBoundingClientRect().width ?? 0;
+  }, []);
+
+  const handleFilePanelResize = useCallback(
+    (clientX: number) => {
+      const layout = panelsLayoutRef.current;
+      if (!layout) return;
+      const left = layout.getBoundingClientRect().left;
+      const otherPanels =
+        (showAiPanel ? aiPanelWidth + PANEL_RESIZE_GUTTER_PX : 0) +
+        (showFilePanel ? PANEL_RESIZE_GUTTER_PX : 0);
+      const width = clampPanelWidthInLayout(
+        clientX - left,
+        getLayoutWidth(),
+        otherPanels
+      );
+      setFilePanelWidth(width);
+    },
+    [aiPanelWidth, getLayoutWidth, setFilePanelWidth, showAiPanel, showFilePanel]
+  );
+
+  const handleAiPanelResize = useCallback(
+    (clientX: number) => {
+      const layout = panelsLayoutRef.current;
+      if (!layout) return;
+      const right = layout.getBoundingClientRect().right;
+      const otherPanels =
+        (showFilePanel ? filePanelWidth + PANEL_RESIZE_GUTTER_PX : 0) +
+        (showAiPanel ? PANEL_RESIZE_GUTTER_PX : 0);
+      const width = clampPanelWidthInLayout(
+        right - clientX,
+        getLayoutWidth(),
+        otherPanels
+      );
+      setAiPanelWidth(width);
+    },
+    [filePanelWidth, getLayoutWidth, setAiPanelWidth, showAiPanel, showFilePanel]
+  );
 
   const { initSettings } = useSettingsStore();
 
   // Load settings from disk on startup
   useEffect(() => { initSettings(); }, []);
+
+  // PlantUML error UI: delegate AI fix button clicks (preview + WYSIWYG innerHTML)
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement | null)?.closest?.('.plantuml-ai-fix-btn');
+      if (!target || !(target instanceof HTMLElement)) return;
+      if (target.hasAttribute('data-fix-handled')) return;
+      const fixId = target.getAttribute('data-fix-id');
+      if (!fixId) return;
+      e.preventDefault();
+      e.stopPropagation();
+      target.setAttribute('data-fix-handled', '1');
+      const payload = consumePlantUmlFixPayload(fixId);
+      if (payload) {
+        useAppStore.getState().requestPlantUmlAiFix(payload);
+      }
+    };
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, []);
 
   // ── Windows / desktop: open file from argv (file association) or second-instance emit ──
   useEffect(() => {
@@ -219,42 +293,64 @@ function App() {
         {/* Narrow icon sidebar */}
         <Sidebar />
 
-        {/* Left: File explorer panel */}
-        {sidebarPanel === 'files' && (
-          <div className="w-56 flex-shrink-0 notez-panel border-r border-gray-200 overflow-hidden flex flex-col">
-            <FileExplorer />
-          </div>
-        )}
-
-        {/* Main content */}
-        <main className="flex-1 overflow-hidden flex flex-col">
-          {activeView === 'editor' ? (
-            <>
-              {/* Tab bar — only when multiple tabs or always for consistency */}
-              {tabs.length > 0 && <TabBar />}
-              {activeTabId === SETTINGS_TAB_ID ? (
-                <div className="flex-1 flex flex-col min-h-0 overflow-hidden notez-panel">
-                  <SettingsPanel />
-                </div>
-              ) : (
-                <MarkdownEditor
-                  key={activeTabId}
-                  content={content}
-                  onChange={(c) => useAppStore.getState().setContent(c)}
-                />
-              )}
-            </>
-          ) : (
-            <TaskBoardUI tasks={tasks} onTasksChange={setTasks} />
+        <div ref={panelsLayoutRef} className="flex flex-1 min-w-0 overflow-hidden">
+          {/* Left: File explorer panel */}
+          {showFilePanel && (
+            <div
+              className="flex-shrink-0 notez-panel overflow-hidden flex flex-col"
+              style={{ width: filePanelWidth }}
+            >
+              <FileExplorer />
+            </div>
           )}
-        </main>
 
-        {/* Right: AI assistant panel */}
-        {rightPanel === 'ai' && (
-          <div className="w-72 flex-shrink-0 notez-panel border-l border-gray-200 overflow-hidden flex flex-col">
-            <AiPanel />
-          </div>
-        )}
+          {showFilePanel && (
+            <PanelResizeHandle
+              aria-label="调整文件树宽度"
+              onDrag={handleFilePanelResize}
+            />
+          )}
+
+          {/* Main content */}
+          <main className="flex-1 min-w-0 overflow-hidden flex flex-col">
+            {activeView === 'editor' ? (
+              <>
+                {/* Tab bar — only when multiple tabs or always for consistency */}
+                {tabs.length > 0 && <TabBar />}
+                {activeTabId === SETTINGS_TAB_ID ? (
+                  <div className="flex-1 flex flex-col min-h-0 overflow-hidden notez-panel">
+                    <SettingsPanel />
+                  </div>
+                ) : (
+                  <MarkdownEditor
+                    key={activeTabId}
+                    content={content}
+                    onChange={(c) => useAppStore.getState().setContent(c)}
+                  />
+                )}
+              </>
+            ) : (
+              <TaskBoardUI tasks={tasks} onTasksChange={setTasks} />
+            )}
+          </main>
+
+          {showAiPanel && (
+            <PanelResizeHandle
+              aria-label="调整 AI 面板宽度"
+              onDrag={handleAiPanelResize}
+            />
+          )}
+
+          {/* Right: AI assistant panel */}
+          {showAiPanel && (
+            <div
+              className="flex-shrink-0 notez-panel overflow-hidden flex flex-col"
+              style={{ width: aiPanelWidth }}
+            >
+              <AiPanel />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

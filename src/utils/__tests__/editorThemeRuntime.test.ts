@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  resolveEditorColorMode,
-  buildSourceEditorThemeExtensions,
-  buildCodeBlockSyntaxExtensions,
-} from '../editorThemeRuntime';
+import { resolveEditorColorMode, getSourceEditorChrome } from '../editorThemeRuntime';
 
 describe('editorThemeRuntime', () => {
   it('resolveEditorColorMode', () => {
@@ -13,12 +9,8 @@ describe('editorThemeRuntime', () => {
     expect(resolveEditorColorMode('system', false)).toBe('light');
   });
 
-  it('buildSourceEditorThemeExtensions 返回非空扩展', () => {
-    expect(buildSourceEditorThemeExtensions('dark').length).toBeGreaterThan(0);
-    expect(buildSourceEditorThemeExtensions('light').length).toBeGreaterThan(0);
-  });
-
-  it('buildCodeBlockSyntaxExtensions 委托 codeBlockThemes', () => {
-    expect(buildCodeBlockSyntaxExtensions('dracula').length).toBeGreaterThan(0);
+  it('getSourceEditorChrome 返回有效扩展', () => {
+    expect(getSourceEditorChrome('dark')).toBeTruthy();
+    expect(getSourceEditorChrome('light')).toBeTruthy();
   });
 });
