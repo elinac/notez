@@ -1,6 +1,6 @@
 /**
  * PlantUML 离线渲染：Tauri 下经 invoke 走 JAR（默认）或实验性 Rust 引擎。
- * 失败时在调用方占位容器内展示错误 HTML（见 formatPlantUmlErrorHtml）。
+ * 失败时返回 RenderResult 的 ok: false 分支（结构化错误，不再生成错误 HTML）。
  */
 import { effectivePlantUmlBackend } from '../../constants/buildFlags';
 import { DEFAULT_PLANTUML_THEME } from '../../constants/plantumlThemes';
@@ -8,7 +8,7 @@ import {
   useSettingsStore,
   type PlantUmlBackend,
 } from '../../store/useSettingsStore';
-import { formatPlantUmlErrorHtml } from './plantumlErrorUi';
+import { parsePlantUmlErrorLine } from './plantumlErrorUi';
 
 function ensurePlantUMLWrapper(source: string): string {
   const t = source.trim();
@@ -261,18 +261,29 @@ async function tryRenderBundledPlantuml(
 }
 
 /**
- * 渲染单个 PlantUML 代码块 → HTML 片段（内联 SVG 或错误提示）
+ * 渲染单个 PlantUML 代码块 → 成功时内联 SVG，失败时结构化错误信息
  *
  * @param themeOverride 传入时使用该主题生成/缓存（与 UI 当前帧一致，避免切换主题时与 store 读取出错序）
  */
+export type RenderResult =
+  | { ok: true; html: string }
+  | { ok: false; source: string; error: string; line?: number };
+
 export async function renderPlantUMLOffline(
   source: string,
   themeOverride?: string
-): Promise<string> {
+): Promise<RenderResult> {
   try {
-    return await tryRenderBundledPlantuml(source, themeOverride);
+    const html = await tryRenderBundledPlantuml(source, themeOverride);
+    return { ok: true, html };
   } catch (error) {
     console.error('[PlantUML] offline render error:', error);
-    return formatPlantUmlErrorHtml(toDisplayMessage(error), source);
+    const message = toDisplayMessage(error);
+    return {
+      ok: false,
+      source,
+      error: message,
+      line: parsePlantUmlErrorLine(message),
+    };
   }
 }

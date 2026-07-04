@@ -54,10 +54,12 @@ describe('PlantUML Real Render (mock invoke)', () => {
     const expectedSource = `@startuml\n!theme ${DEFAULT_PLANTUML_THEME}\nBob -> Alice : hello\n@enduml`;
     const result = await renderPlantUMLOffline(src);
 
-    expect(result.trim()).toMatch(/^<svg/);
-    expect(result).toContain('plantuml-jar');
-    expect(result).toContain('1c1c1c');
-    expect(result).not.toContain('plantuml-error');
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected success');
+    expect(result.html.trim()).toMatch(/^<svg/);
+    expect(result.html).toContain('plantuml-jar');
+    expect(result.html).toContain('1c1c1c');
+    expect(result.html).not.toContain('plantuml-error');
     expect(vi.mocked(invoke)).toHaveBeenCalledWith('render_plantuml_local', {
       source: expectedSource,
       format: 'svg',
@@ -71,11 +73,13 @@ describe('PlantUML Real Render (mock invoke)', () => {
     vi.mocked(invoke).mockResolvedValue(mockInvokeOk(svg));
 
     const result = await renderPlantUMLOffline('@startuml\na->b\n@enduml');
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected success');
 
-    expect(result).toContain('width="48"');
-    expect(result).toContain('height="32"');
-    expect(result).not.toMatch(/<svg[^>]*\swidth=/i);
-    expect(result).not.toMatch(/<svg[^>]*\sheight=/i);
+    expect(result.html).toContain('width="48"');
+    expect(result.html).toContain('height="32"');
+    expect(result.html).not.toMatch(/<svg[^>]*\swidth=/i);
+    expect(result.html).not.toMatch(/<svg[^>]*\sheight=/i);
   });
 
   it('REAL-1d: 相同图源第二次渲染命中内存缓存，不再 invoke', async () => {
@@ -140,9 +144,11 @@ describe('PlantUML Real Render (mock invoke)', () => {
     const expectedSource = `@startuml\n!theme ${DEFAULT_PLANTUML_THEME}\nBob -> Alice : hello\n@enduml`;
     const result = await renderPlantUMLOffline(src);
 
-    expect(result.trim()).toMatch(/^<svg/);
-    expect(result).toContain('plantuml-rust');
-    expect(result).not.toContain('plantuml-jar');
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected success');
+    expect(result.html.trim()).toMatch(/^<svg/);
+    expect(result.html).toContain('plantuml-rust');
+    expect(result.html).not.toContain('plantuml-jar');
     expect(vi.mocked(invoke)).toHaveBeenCalledWith('render_plantuml_local', {
       source: expectedSource,
       format: 'svg',
@@ -162,53 +168,67 @@ describe('PlantUML Real Render (mock invoke)', () => {
     expect(vi.mocked(invoke)).toHaveBeenCalledTimes(2);
   });
 
-  it('REAL-1h: invoke 返回不支持的 backend 时展示 plantuml-error', async () => {
+  it('REAL-1h: invoke 返回不支持的 backend 时返回 ok:false RenderResult', async () => {
     vi.mocked(invoke).mockRejectedValue(
       new Error('不支持的 PlantUML 后端: wasm（仅支持 jar / rust）')
     );
-    const result = await renderPlantUMLOffline('@startuml\nx\n@enduml');
-    expect(result).toContain('plantuml-error');
-    expect(result).toContain('不支持的 PlantUML 后端');
+    const src = '@startuml\nx\n@enduml';
+    const result = await renderPlantUMLOffline(src);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected failure');
+    expect(result.error).toContain('不支持的 PlantUML 后端');
+    expect(result.source).toBe(src);
   });
 
-  it('REAL-1i: Rust 路径解析失败时 invoke 错误（第 n 行）进入 plantuml-error', async () => {
+  it('REAL-1i: Rust 路径解析失败时 invoke 错误（第 n 行）进入 ok:false RenderResult', async () => {
     const msg = '第 2 行: 不支持类图/组件等非序列图关键字（Rust 引擎当前仅支持序列图子集）';
     vi.mocked(invoke).mockRejectedValue(new Error(msg));
     useSettingsStore.setState({ plantUmlBackend: 'rust' });
-    const result = await renderPlantUMLOffline('@startuml\nclass X\n@enduml');
-    expect(result).toContain('plantuml-error');
-    expect(result).toContain('第 2 行');
+    const src = '@startuml\nclass X\n@enduml';
+    const result = await renderPlantUMLOffline(src);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected failure');
+    expect(result.error).toContain('第 2 行');
+    expect(result.line).toBe(2);
+    expect(result.source).toBe(src);
   });
 
-  it('REAL-2: invoke 抛错时返回 plantuml-error 且文案可见', async () => {
+  it('REAL-2: invoke 抛错时返回 ok:false RenderResult', async () => {
     vi.mocked(invoke).mockRejectedValue(new Error('PlantUML 退出码 Some(1): syntax error'));
 
     const src = '@startuml\nbad\n@enduml';
     const result = await renderPlantUMLOffline(src);
 
-    expect(result).toContain('plantuml-error');
-    expect(result).toContain('PlantUML 退出码');
-    expect(result).toContain('查看源码');
-    expect(result).toContain('@startuml');
-    expect(result).toContain('plantuml-ai-fix-btn');
-    expect(result).toContain('AI 修复');
+    expect(result).toEqual({
+      ok: false,
+      source: src,
+      error: 'PlantUML 退出码 Some(1): syntax error',
+      line: undefined,
+    });
   });
 
-  it('REAL-2b: JAR 错误含行号时展示行号徽章', async () => {
+  it('REAL-2b: JAR 错误含行号时 line 字段为解析结果', async () => {
     const msg = 'PlantUML 退出码 Some(200): ERROR\n3\nSyntax Error?';
     vi.mocked(invoke).mockRejectedValue(new Error(msg));
-    const result = await renderPlantUMLOffline('@startuml\npackage"X"\n@enduml');
-    expect(result).toContain('plantuml-error__line-badge');
-    expect(result).toContain('第 3 行');
-    expect(result).toContain('plantuml-ai-fix-btn');
+    const src = '@startuml\npackage"X"\n@enduml';
+    const result = await renderPlantUMLOffline(src);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected failure');
+    expect(result.line).toBe(3);
+    expect(result.source).toBe(src);
+    expect(result.error).toContain('Syntax Error?');
   });
 
-  it('REAL-3: 输出非 SVG 时返回 plantuml-error', async () => {
+  it('REAL-3: 输出非 SVG 时返回 ok:false RenderResult', async () => {
     vi.mocked(invoke).mockResolvedValue(mockInvokeOk('not svg at all'));
 
-    const result = await renderPlantUMLOffline('@startuml\na->b\n@enduml');
-    expect(result).toContain('plantuml-error');
-    expect(result).toContain('输出非 SVG');
+    const src = '@startuml\na->b\n@enduml';
+    const result = await renderPlantUMLOffline(src);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected failure');
+    expect(result.error).toContain('输出非 SVG');
+    expect(result.source).toBe(src);
   });
 
   it('REAL-4: plantUMLToDot 多时序图仍产生预期 DOT（解析单测，不经 invoke）', async () => {

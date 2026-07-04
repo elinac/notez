@@ -134,6 +134,7 @@ function formatSourceWithLineNumbers(source: string, errorLine?: number): string
   return `${hint}${rows}`;
 }
 
+/** @deprecated 主路径改用 PlantUMLErrorCodeView；保留供全局 click 委托兜底 */
 export function formatPlantUmlErrorHtml(message: string, source: string): string {
   const errorLine = parsePlantUmlErrorLine(message);
   const summary = escapeHtmlText(formatPlantUmlErrorSummary(message, errorLine));
