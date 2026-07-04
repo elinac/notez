@@ -6,14 +6,57 @@ import { useSettingsStore } from '../../store/useSettingsStore';
 
 // Mock the offline renderer - no WASM in unit tests
 vi.mock('../plantuml-offline/PlantUMLOfflineRenderer', () => ({
-  renderPlantUMLOffline: vi.fn().mockResolvedValue('<svg>mocked plantuml</svg>'),
+  renderPlantUMLOffline: vi.fn().mockResolvedValue({
+    ok: true,
+    html: '<svg>mocked plantuml</svg>',
+  }),
+}));
+
+vi.mock('../../store/useAppStore', () => ({
+  useAppStore: {
+    getState: vi.fn(() => ({
+      requestPlantUmlAiFix: vi.fn(),
+    })),
+  },
 }));
 
 describe('PlantUMLRenderer', () => {
   describe('组件：previewDocumentId', () => {
     beforeEach(() => {
+      Object.defineProperty(window, 'matchMedia', {
+        writable: true,
+        value: vi.fn().mockImplementation((query: string) => ({
+          matches: false,
+          media: query,
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        })),
+      });
+
       vi.mocked(renderPlantUMLOffline).mockClear();
       useSettingsStore.setState({ plantUmlTheme: 'bluegray' });
+    });
+
+    it('渲染失败时通过 Portal 展示 PlantUMLErrorCodeView', async () => {
+      vi.mocked(renderPlantUMLOffline).mockResolvedValueOnce({
+        ok: false,
+        source: '@startuml\nbad\n@enduml',
+        error: 'Syntax Error?',
+        line: 2,
+      });
+
+      const md = '```plantuml\nbad line\n@enduml\n```';
+      const { container } = render(<PlantUMLRenderer content={md} previewDocumentId="t1" />);
+
+      await waitFor(() => {
+        expect(container.querySelector('.puml-error-code-view')).toBeTruthy();
+      });
+      expect(container.querySelector('.puml-error-code-view__line--err')).toBeTruthy();
+      expect(container.textContent).toContain('AI 修复');
     });
 
     it('相同 content 但 previewDocumentId 变化时仍再次调用离线渲染（避免换标签/文件后漏刷）', async () => {

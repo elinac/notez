@@ -1,6 +1,8 @@
-import { useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { renderPlantUMLOffline } from './plantuml-offline/PlantUMLOfflineRenderer';
+import { PlantUMLErrorCodeView } from './plantuml-offline/PlantUMLErrorCodeView';
 import { scopeSvgIdsForHtmlDocument } from './plantuml-offline/scopeSvgIdsForHtmlDocument';
 import { formatMermaidErrorHtml, renderMermaidSvg } from './mermaidSingleton';
 import { diagramBlockShellHtml, initDiagramBlockZoom } from './diagramZoom';
@@ -13,6 +15,13 @@ interface PlantUMLRendererProps {
    */
   previewDocumentId?: string;
 }
+
+type ErrorPortalEntry = {
+  node: HTMLElement;
+  source: string;
+  error: string;
+  line?: number;
+};
 
 /**
  * Render markdown with PlantUML offline support
@@ -145,6 +154,7 @@ function renderBasicMarkdown(text: string): string {
 export function PlantUMLRenderer({ content, previewDocumentId = '' }: PlantUMLRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const plantUmlTheme = useSettingsStore((s) => s.plantUmlTheme);
+  const [errorPortals, setErrorPortals] = useState<ErrorPortalEntry[]>([]);
 
   // useLayoutEffect：在绘制前同步 innerHTML，减少分屏下异步注入 SVG 时的样式/继承错乱；
   // 依赖 content + plantUmlTheme + previewDocumentId，避免仅 theme+html 碰撞时跳过刷新。
@@ -157,6 +167,7 @@ export function PlantUMLRenderer({ content, previewDocumentId = '' }: PlantUMLRe
 
     // Write HTML into DOM directly (bypass React's virtual DOM for async updates)
     containerRef.current.innerHTML = html;
+    setErrorPortals([]);
 
     for (const block of containerRef.current.querySelectorAll<HTMLElement>('.diagram-block')) {
       initDiagramBlockZoom(block);
@@ -168,6 +179,7 @@ export function PlantUMLRenderer({ content, previewDocumentId = '' }: PlantUMLRe
     );
     const themeForThisPass = plantUmlTheme;
     (async () => {
+      const errors: ErrorPortalEntry[] = [];
       for (const block of plantUMLBlocks) {
         if (cancelled) return;
         const code = block.getAttribute('data-plantuml-code');
@@ -177,11 +189,24 @@ export function PlantUMLRenderer({ content, previewDocumentId = '' }: PlantUMLRe
           .replace(/&lt;/g, '<')
           .replace(/&gt;/g, '>')
           .replace(/&quot;/g, '"');
-        const svg = await renderPlantUMLOffline(decoded, themeForThisPass);
+        const result = await renderPlantUMLOffline(decoded, themeForThisPass);
         if (cancelled) return;
         if (containerRef.current?.contains(block)) {
-          block.innerHTML = scopeSvgIdsForHtmlDocument(svg);
+          if (result.ok) {
+            block.innerHTML = scopeSvgIdsForHtmlDocument(result.html);
+          } else {
+            block.innerHTML = '';
+            errors.push({
+              node: block,
+              source: result.source,
+              error: result.error,
+              line: result.line,
+            });
+          }
         }
+      }
+      if (!cancelled && errors.length > 0) {
+        setErrorPortals(errors);
       }
     })();
 
@@ -225,10 +250,23 @@ export function PlantUMLRenderer({ content, previewDocumentId = '' }: PlantUMLRe
   }, [content, plantUmlTheme, previewDocumentId]);
 
   return (
-    <div
-      ref={containerRef}
-      className="diagram-color-fix prose prose-slate max-w-none p-4"
-    />
+    <>
+      <div
+        ref={containerRef}
+        className="diagram-color-fix prose prose-slate max-w-none p-4"
+      />
+      {errorPortals.map(({ node, source, error, line }, i) =>
+        createPortal(
+          <PlantUMLErrorCodeView
+            key={`${previewDocumentId}-${i}-${source.slice(0, 32)}`}
+            source={source}
+            errorMessage={error}
+            errorLine={line}
+          />,
+          node
+        )
+      )}
+    </>
   );
 }
 
