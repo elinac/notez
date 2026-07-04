@@ -1,3 +1,4 @@
+mod font_service;
 mod plantuml_native;
 mod plantuml_runtime;
 
@@ -67,7 +68,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             plantuml_runtime::render_plantuml_local,
-            plantuml_runtime::plantuml_runtime_available
+            plantuml_runtime::plantuml_runtime_available,
+            font_service::list_system_fonts
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

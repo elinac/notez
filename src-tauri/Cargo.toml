@@ -30,6 +30,7 @@ tauri-plugin-single-instance = "2"
 flate2 = "1"
 chrono = "0.4"
 rust-sugiyama = "0.4"
+font-kit = "0.14"
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-window-state = "2"
