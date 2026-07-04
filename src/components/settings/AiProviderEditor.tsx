@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Wifi, CheckCircle, XCircle, ChevronDown } from 'lucide-react';
-import type { AiProviderConfig, AiProvider } from '../../store/useSettingsStore';
+import { Wifi, CheckCircle, XCircle, ChevronDown, RefreshCw } from 'lucide-react';
+import type { AiProviderConfig, AiProvider, ProxyMode } from '../../store/useSettingsStore';
 
 const PROVIDER_PRESETS: Record<AiProvider, Partial<AiProviderConfig>> = {
   openai: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
@@ -22,9 +22,54 @@ interface Props {
 export function AiProviderEditor({ config, isNew, onSave, onCancel, onTest, testState }: Props) {
   const [editing, setEditing] = useState(config);
 
+  const [fetchedModels, setFetchedModels] = useState<string[]>([]);
+  const [fetchingModels, setFetchingModels] = useState(false);
+
   const handleProviderChange = (provider: AiProvider) => {
     const preset = PROVIDER_PRESETS[provider];
     setEditing({ ...editing, provider, ...preset });
+  };
+
+  const handleFetchModels = async () => {
+    if (!editing.baseUrl) return;
+    setFetchingModels(true);
+    try {
+      let models: string[] = [];
+      if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const result = await invoke<{ id: string; name?: string }[]>('ai_list_models', {
+          baseUrl: editing.baseUrl,
+          apiKey: editing.apiKey,
+          provider: editing.provider,
+          proxyMode: editing.proxyMode,
+          proxyUrl: editing.proxyUrl,
+        });
+        models = result.map((m) => m.id);
+      } else {
+        const url = `${editing.baseUrl.replace(/\/+$/, '')}/models`;
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (editing.apiKey) {
+          if (editing.provider === 'anthropic') {
+            headers['x-api-key'] = editing.apiKey;
+            headers['anthropic-version'] = '2023-06-01';
+          } else {
+            headers['Authorization'] = `Bearer ${editing.apiKey}`;
+          }
+        }
+        const resp = await fetch(url, { headers });
+        if (resp.ok) {
+          const json = await resp.json();
+          const data = Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
+          models = data.map((m: { id?: string }) => m.id).filter(Boolean) as string[];
+        }
+      }
+      setFetchedModels(models.sort());
+    } catch (err) {
+      console.error('Failed to fetch models:', err);
+      setFetchedModels([]);
+    } finally {
+      setFetchingModels(false);
+    }
   };
 
   return (
@@ -61,10 +106,63 @@ export function AiProviderEditor({ config, isNew, onSave, onCancel, onTest, test
               placeholder="sk-..." />
           </div>
           <div>
+            <label className="block text-xs text-gray-500 mb-1">代理设置</label>
+            <div className="flex flex-col gap-1.5">
+              {(['none', 'system', 'custom'] as const).map((mode) => (
+                <label key={mode} className="flex items-center gap-1.5 text-xs cursor-pointer">
+                  <input
+                    type="radio"
+                    name="proxyMode"
+                    checked={editing.proxyMode === mode}
+                    onChange={() => setEditing({ ...editing, proxyMode: mode as ProxyMode, ...(mode !== 'custom' ? { proxyUrl: undefined } : {}) })}
+                    className="w-3 h-3"
+                  />
+                  {mode === 'none' ? '无代理' : mode === 'system' ? '系统代理' : '自定义代理'}
+                </label>
+              ))}
+            </div>
+            {editing.proxyMode === 'custom' && (
+              <input
+                className="w-full px-2 py-1.5 border rounded text-sm outline-none focus:border-blue-400 font-mono mt-1.5"
+                value={editing.proxyUrl ?? ''}
+                onChange={(e) => setEditing({ ...editing, proxyUrl: e.target.value })}
+                placeholder="http://127.0.0.1:7890 or socks5://..."
+              />
+            )}
+          </div>
+          <div>
             <label className="block text-xs text-gray-500 mb-1">模型</label>
-            <input className="w-full px-2 py-1.5 border rounded text-sm outline-none focus:border-blue-400"
-              value={editing.model} onChange={(e) => setEditing({ ...editing, model: e.target.value })}
-              placeholder={editing.provider === 'anthropic' ? 'claude-sonnet-4-6' : 'gpt-4o-mini'} />
+            <div className="flex gap-1.5">
+              <div className="flex-1 relative">
+                <input
+                  className="w-full px-2 py-1.5 border rounded text-sm outline-none focus:border-blue-400"
+                  value={editing.model}
+                  onChange={(e) => setEditing({ ...editing, model: e.target.value })}
+                  placeholder={editing.provider === 'anthropic' ? 'claude-sonnet-4-6' : 'gpt-4o-mini'}
+                  list={`models-${editing.id}`}
+                />
+                {fetchedModels.length > 0 && (
+                  <datalist id={`models-${editing.id}`}>
+                    {fetchedModels.map((m) => (
+                      <option key={m} value={m} />
+                    ))}
+                  </datalist>
+                )}
+              </div>
+              <button
+                onClick={handleFetchModels}
+                disabled={fetchingModels || !editing.baseUrl}
+                className="px-2 py-1.5 text-xs bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-40 flex-shrink-0 flex items-center gap-1"
+                title="从服务商拉取可用模型列表"
+              >
+                {fetchingModels ? (
+                  <span className="inline-block w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <RefreshCw size={11} />
+                )}
+                拉取
+              </button>
+            </div>
           </div>
         </div>
         <div className="flex gap-2 mt-4">
