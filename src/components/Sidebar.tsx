@@ -3,7 +3,7 @@
  * Each button toggles a panel or switches the active view.
  */
 import { FolderOpen, LayoutGrid, Sparkles, Settings } from 'lucide-react';
-import { useAppStore, SidebarPanel, RightPanel, SETTINGS_TAB_ID } from '../store/useAppStore';
+import { useAppStore, SidebarPanel, RightPanel } from '../store/useAppStore';
 
 type SidebarItemId = SidebarPanel | 'board' | 'ai' | 'settings';
 
@@ -55,8 +55,8 @@ export function Sidebar() {
     setRightPanel,
     activeView,
     setActiveView,
-    activeTabId,
-    openSettingsTab,
+    settingsDialogOpen,
+    toggleSettingsDialog,
     tasks,
   } = useAppStore();
 
@@ -67,8 +67,7 @@ export function Sidebar() {
       setActiveView('board');
       if (sidebarPanel === 'files') setSidebarPanel(null);
     } else if (item.id === 'settings') {
-      openSettingsTab();
-      if (activeView === 'board') setActiveView('editor');
+      toggleSettingsDialog();
     } else if (item.side === 'right') {
       const panelId = item.id as RightPanel;
       setRightPanel(rightPanel === panelId ? null : panelId);
@@ -82,7 +81,7 @@ export function Sidebar() {
   const isActive = (item: SidebarItem) => {
     if (item.id === 'board') return activeView === 'board';
     if (item.id === 'settings') {
-      return activeView === 'editor' && activeTabId === SETTINGS_TAB_ID;
+      return settingsDialogOpen;
     }
     if (item.side === 'right') return rightPanel === item.id;
     return sidebarPanel === item.id;

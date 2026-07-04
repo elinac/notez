@@ -4,10 +4,10 @@ import { TaskBoardUI } from "./components/TaskBoardUI";
 import { Sidebar } from "./components/Sidebar";
 import { FileExplorer } from "./components/FileExplorer";
 import { AiPanel } from "./components/AiPanel";
-import { SettingsPanel } from "./components/SettingsPanel";
 import { TabBar } from "./components/TabBar";
+import { SettingsDialog } from './components/settings/SettingsDialog';
 import { PanelResizeHandle } from "./components/PanelResizeHandle";
-import { useAppStore, SETTINGS_TAB_ID, isFileTab } from "./store/useAppStore";
+import { useAppStore, isFileTab } from "./store/useAppStore";
 import { useSettingsStore } from "./store/useSettingsStore";
 import {
   saveMarkdownFileTauri,
@@ -39,6 +39,8 @@ function App() {
     setFilePanelWidth,
     setAiPanelWidth,
     loadFile, updateTabFile, refreshFileTree,
+    settingsDialogOpen,
+    closeSettingsDialog,
   } = useAppStore();
 
   const panelsLayoutRef = useRef<HTMLDivElement>(null);
@@ -212,8 +214,11 @@ function App() {
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        const { rightPanel, setRightPanel } = useAppStore.getState();
-        if (rightPanel) {
+        const { settingsDialogOpen, closeSettingsDialog, rightPanel, setRightPanel } = useAppStore.getState();
+        if (settingsDialogOpen) {
+          closeSettingsDialog();
+          e.preventDefault();
+        } else if (rightPanel) {
           setRightPanel(null);
           e.preventDefault();
         }
@@ -262,7 +267,7 @@ function App() {
         if (tabList.length > 1) closeTab(aid);
       } else if (e.key === ',') {
         e.preventDefault();
-        useAppStore.getState().openSettingsTab();
+        useAppStore.getState().toggleSettingsDialog();
       }
     };
 
@@ -287,6 +292,8 @@ function App() {
           e.target.value = '';
         }}
       />
+
+      <SettingsDialog open={settingsDialogOpen} onClose={closeSettingsDialog} />
 
       {/* ── Body: Sidebar + Left Panel + Main + Right Panel ── */}
       <div className="flex flex-1 overflow-hidden">
@@ -317,17 +324,11 @@ function App() {
               <>
                 {/* Tab bar — only when multiple tabs or always for consistency */}
                 {tabs.length > 0 && <TabBar />}
-                {activeTabId === SETTINGS_TAB_ID ? (
-                  <div className="flex-1 flex flex-col min-h-0 overflow-hidden notez-panel">
-                    <SettingsPanel />
-                  </div>
-                ) : (
-                  <MarkdownEditor
-                    key={activeTabId}
-                    content={content}
-                    onChange={(c) => useAppStore.getState().setContent(c)}
-                  />
-                )}
+                <MarkdownEditor
+                  key={activeTabId}
+                  content={content}
+                  onChange={(c) => useAppStore.getState().setContent(c)}
+                />
               </>
             ) : (
               <TaskBoardUI tasks={tasks} onTasksChange={setTasks} />

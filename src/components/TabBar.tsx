@@ -9,11 +9,8 @@ export function TabBar() {
       {tabs.map((tab) => {
         const isActive = tab.id === activeTabId;
         const isOnly = tabs.length === 1;
-        const title =
-          tab.kind === 'settings'
-            ? tab.title
-            : tab.file.path ?? tab.file.title;
-        const label = tab.kind === 'settings' ? tab.title : tab.file.title;
+        const title = isFileTab(tab) ? (tab.file.path ?? tab.file.title) : 'Unknown';
+        const label = isFileTab(tab) ? tab.file.title : 'Unknown';
         const showDirty = isFileTab(tab) && tab.file.isDirty;
 
         return (

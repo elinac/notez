@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X } from 'lucide-react';
 import { SettingsSidebar } from './SettingsSidebar';
+import { AppearanceSettings } from './AppearanceSettings';
+import { AiSettings } from './AiSettings';
+import { PlantUmlSettings } from './PlantUmlSettings';
 import type { SettingsCategory } from './settingsTypes';
 
 interface Props {
@@ -52,8 +55,9 @@ export function SettingsDialog({ open, onClose }: Props) {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-5">
-            {/* Phase 1 placeholder: sub-components will be wired in Task 4/5 */}
-            <div className="text-xs text-gray-400">{category} settings placeholder</div>
+            {category === 'appearance' && <AppearanceSettings />}
+            {category === 'ai' && <AiSettings />}
+            {category === 'plantuml' && <PlantUmlSettings />}
           </div>
         </div>
       </div>

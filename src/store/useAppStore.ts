@@ -21,7 +21,7 @@ import { clampSplitRatio, removeTabSplitRatio } from '../utils/splitPaneRatio';
 export type AppView = 'editor' | 'board';
 export type EditorMode = 'split' | 'edit' | 'wysiwyg';
 export type SidebarPanel = 'files' | null;
-/** Right-side panel (AI assistant only; settings opens as a main-area tab) */
+/** Right-side panel (AI assistant only; settings opens as a modal dialog) */
 export type RightPanel = 'ai' | null;
 
 export type PlantUmlFixRequest = {
@@ -29,8 +29,6 @@ export type PlantUmlFixRequest = {
   errorMessage: string;
   errorLine?: number;
 };
-
-export const SETTINGS_TAB_ID = '__notez-settings__' as const;
 
 // ── Tab types ─────────────────────────────────────────────────────────────────
 export type FileEditorTab = {
@@ -40,13 +38,7 @@ export type FileEditorTab = {
   content: string;
 };
 
-export type SettingsEditorTab = {
-  kind: 'settings';
-  id: typeof SETTINGS_TAB_ID;
-  title: string;
-};
-
-export type EditorTab = FileEditorTab | SettingsEditorTab;
+export type EditorTab = FileEditorTab;
 
 export function isFileTab(t: EditorTab): t is FileEditorTab {
   return t.kind === 'file';
@@ -55,13 +47,6 @@ export function isFileTab(t: EditorTab): t is FileEditorTab {
 /** Normalize tabs rehydrated from older persisted state (no `kind` field). */
 function normalizeTab(raw: unknown): EditorTab {
   const t = raw as Record<string, unknown>;
-  if (t && t.kind === 'settings' && t.id === SETTINGS_TAB_ID) {
-    return {
-      kind: 'settings',
-      id: SETTINGS_TAB_ID,
-      title: typeof t.title === 'string' ? t.title : '设置',
-    };
-  }
   const file = t?.file as NoteFile;
   const id = typeof t?.id === 'string' ? t.id : `tab-${Date.now()}`;
   const content = typeof t?.content === 'string' ? t.content : '';
@@ -124,7 +109,6 @@ interface AppState {
 
   // Tab actions
   openTab: (file: NoteFile) => void;
-  openSettingsTab: () => void;
   closeTab: (tabId: string) => void;
   switchTab: (tabId: string) => void;
   updateTabContent: (tabId: string, content: string) => void;
@@ -264,28 +248,6 @@ export const useAppStore = create<AppState>()(
             };
           }),
 
-        openSettingsTab: () =>
-          set((state) => {
-            const existing = state.tabs.find((t) => t.kind === 'settings');
-            if (existing) {
-              return {
-                activeTabId: existing.id,
-                activeView: 'editor',
-              };
-            }
-            const settingsTab: SettingsEditorTab = {
-              kind: 'settings',
-              id: SETTINGS_TAB_ID,
-              title: '设置',
-            };
-            const newTabs = [...state.tabs, settingsTab];
-            return {
-              tabs: newTabs,
-              activeTabId: settingsTab.id,
-              activeView: 'editor',
-            };
-          }),
-
         closeTab: (tabId) =>
           set((state) => {
             if (state.tabs.length <= 1) return {};
@@ -317,9 +279,6 @@ export const useAppStore = create<AppState>()(
           set((state) => {
             const target = state.tabs.find((t) => t.id === tabId);
             if (!target) return {};
-            if (target.kind === 'settings') {
-              return { activeTabId: tabId };
-            }
             return {
               activeTabId: tabId,
               ...syncActive(state.tabs, tabId, initialFile),
