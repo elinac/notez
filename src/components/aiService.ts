@@ -1,8 +1,8 @@
 /**
- * AI Service — OpenAI-compatible streaming API client
- * Works with OpenAI, Ollama (/v1 endpoint), and any custom OpenAI-compatible provider.
+ * AI Service — streaming chat client with Tauri backend (proxy-aware) + browser fallback.
  */
 import type { AiProviderConfig } from '../store/useSettingsStore';
+import { isTauri } from './FileOperations';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -15,23 +15,62 @@ export interface StreamCallbacks {
   onError: (err: Error) => void;
 }
 
+type StreamEvent =
+  | { event: 'token'; data: { content: string } }
+  | { event: 'done'; data: { fullText: string } }
+  | { event: 'error'; data: { message: string } };
+
 /**
  * Send a streaming chat completion request.
- * Calls onToken for each streamed chunk, onDone when finished.
+ * In Tauri mode, delegates to the Rust backend (supports proxy).
+ * In browser mode, falls back to direct fetch.
  */
 export async function streamChat(
   config: AiProviderConfig,
   messages: ChatMessage[],
   { onToken, onDone, onError }: StreamCallbacks
 ): Promise<void> {
+  if (isTauri()) {
+    try {
+      const { invoke, Channel } = await import('@tauri-apps/api/core');
+      const channel = new Channel<StreamEvent>();
+      channel.onmessage = (msg) => {
+        switch (msg.event) {
+          case 'token':
+            onToken(msg.data.content);
+            break;
+          case 'done':
+            onDone(msg.data.fullText);
+            break;
+          case 'error':
+            onError(new Error(msg.data.message));
+            break;
+        }
+      };
+
+      await invoke('ai_chat_stream', {
+        provider: config.provider,
+        baseUrl: config.baseUrl,
+        apiKey: config.apiKey,
+        model: config.model,
+        messages,
+        proxyMode: config.proxyMode ?? 'none',
+        proxyUrl: config.proxyUrl,
+        onEvent: channel,
+      });
+    } catch (err) {
+      onError(new Error(`Tauri AI 请求失败: ${String(err)}`));
+    }
+    return;
+  }
+
+  // ── Browser fallback: direct fetch SSE ──
   const url = `${config.baseUrl.replace(/\/$/, '')}/chat/completions`;
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-
-  // Ollama with key "ollama" doesn't need Authorization, but sending it is harmless
-  if (config.apiKey && config.apiKey !== 'ollama') {
+  if (config.apiKey) {
     headers['Authorization'] = `Bearer ${config.apiKey}`;
   }
 
@@ -74,7 +113,6 @@ export async function streamChat(
 
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
-      // Keep last incomplete line in buffer
       buffer = lines.pop() ?? '';
 
       for (const line of lines) {
@@ -103,13 +141,30 @@ export async function streamChat(
 }
 
 /**
- * Test connectivity: fetch model list from provider.
- * Returns true if successful.
+ * Test connectivity by listing models from the provider.
+ * In Tauri mode, uses the Rust backend (proxy-aware).
  */
 export async function testConnection(config: AiProviderConfig): Promise<{ ok: boolean; message: string }> {
+  if (isTauri()) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('ai_list_models', {
+        provider: config.provider,
+        baseUrl: config.baseUrl,
+        apiKey: config.apiKey,
+        proxyMode: config.proxyMode ?? 'none',
+        proxyUrl: config.proxyUrl,
+      });
+      return { ok: true, message: '连接成功 ✓' };
+    } catch (err) {
+      return { ok: false, message: String(err) };
+    }
+  }
+
+  // ── Browser fallback ──
   const url = `${config.baseUrl.replace(/\/$/, '')}/models`;
   const headers: Record<string, string> = {};
-  if (config.apiKey && config.apiKey !== 'ollama') {
+  if (config.apiKey) {
     headers['Authorization'] = `Bearer ${config.apiKey}`;
   }
 
