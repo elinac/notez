@@ -68,11 +68,13 @@ export function getDiagramCodeBlockLanguages(): LanguageDescription[] {
 
 import { initDiagramZoom, wrapDiagramZoomContent } from './diagramZoom';
 import { renderPlantUMLOffline } from './plantuml-offline/PlantUMLOfflineRenderer';
+import { renderPlantUmlErrorToElement } from './plantuml-offline/renderPlantUmlErrorToElement';
 import { scopeSvgIdsForHtmlDocument } from './plantuml-offline/scopeSvgIdsForHtmlDocument';
 
 registerDiagramRenderer('plantuml', async (code) => {
-  const svg = await renderPlantUMLOffline(code);
-  return scopeSvgIdsForHtmlDocument(svg);
+  const result = await renderPlantUMLOffline(code);
+  if (result.ok) return scopeSvgIdsForHtmlDocument(result.html);
+  return renderPlantUmlErrorToElement(result);
 });
 
 // ── Built-in: Mermaid ─────────────────────────────────────────────────────────
@@ -128,6 +130,10 @@ export async function renderDiagramPreview(
 
   try {
     const result = await renderer(code);
+    if (typeof result !== 'string' && result.querySelector?.('.puml-error-code-view')) {
+      applyPreview(result);
+      return true;
+    }
     const wrapper = document.createElement('div');
     wrapper.className = `diagram-preview diagram-${language.toLowerCase()} diagram-color-fix p-2`;
     wrapper.dataset.diagramZoomRoot = '';
