@@ -6,7 +6,7 @@ import { AiProviderEditor } from './AiProviderEditor';
 
 const PROVIDER_LABELS: Record<AiProvider, string> = {
   openai: 'OpenAI',
-  ollama: 'Ollama (本地)',
+  anthropic: 'Anthropic',
   custom: '自定义',
 };
 
@@ -33,6 +33,7 @@ export function AiSettings() {
     setEditing({
       id: generateId(), name: '新服务商',
       baseUrl: '', apiKey: '', model: '', provider: 'custom',
+      proxyMode: 'none',
     });
   };
 

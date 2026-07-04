@@ -4,7 +4,7 @@ import type { AiProviderConfig, AiProvider } from '../../store/useSettingsStore'
 
 const PROVIDER_PRESETS: Record<AiProvider, Partial<AiProviderConfig>> = {
   openai: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
-  ollama: { baseUrl: 'http://localhost:11434/v1', apiKey: 'ollama', model: 'llama3.2' },
+  anthropic: { baseUrl: 'https://api.anthropic.com', model: 'claude-sonnet-4-6' },
   custom: { baseUrl: '', model: '' },
 };
 
@@ -38,7 +38,7 @@ export function AiProviderEditor({ config, isNew, onSave, onCancel, onTest, test
               <select value={editing.provider} onChange={(e) => handleProviderChange(e.target.value as AiProvider)}
                 className="w-full px-2 py-1.5 border rounded text-sm appearance-none pr-6">
                 <option value="openai">OpenAI</option>
-                <option value="ollama">Ollama (本地)</option>
+                <option value="anthropic">Anthropic</option>
                 <option value="custom">自定义</option>
               </select>
               <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
@@ -58,13 +58,13 @@ export function AiProviderEditor({ config, isNew, onSave, onCancel, onTest, test
             <label className="block text-xs text-gray-500 mb-1">API Key</label>
             <input type="password" className="w-full px-2 py-1.5 border rounded text-sm outline-none focus:border-blue-400 font-mono"
               value={editing.apiKey} onChange={(e) => setEditing({ ...editing, apiKey: e.target.value })}
-              placeholder={editing.provider === 'ollama' ? 'ollama' : 'sk-...'} />
+              placeholder="sk-..." />
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">模型</label>
             <input className="w-full px-2 py-1.5 border rounded text-sm outline-none focus:border-blue-400"
               value={editing.model} onChange={(e) => setEditing({ ...editing, model: e.target.value })}
-              placeholder={editing.provider === 'ollama' ? 'llama3.2' : 'gpt-4o-mini'} />
+              placeholder={editing.provider === 'anthropic' ? 'claude-sonnet-4-6' : 'gpt-4o-mini'} />
           </div>
         </div>
         <div className="flex gap-2 mt-4">

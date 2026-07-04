@@ -23,7 +23,9 @@ import {
 } from '../constants/codeBlockThemes';
 import { DEFAULT_PLANTUML_THEME } from '../constants/plantumlThemes';
 
-export type AiProvider = 'openai' | 'ollama' | 'custom';
+export type AiProvider = 'openai' | 'anthropic' | 'custom';
+
+export type ProxyMode = 'none' | 'system' | 'custom';
 
 /** PlantUML 渲染后端：JAR（默认）或实验性 Rust 引擎 */
 export type PlantUmlBackend = 'jar' | 'rust';
@@ -37,6 +39,8 @@ export interface AiProviderConfig {
   apiKey: string;
   model: string;
   provider: AiProvider;
+  proxyMode: ProxyMode;
+  proxyUrl?: string;
 }
 
 const DEFAULT_CONFIGS: AiProviderConfig[] = [
@@ -47,14 +51,16 @@ const DEFAULT_CONFIGS: AiProviderConfig[] = [
     apiKey: '',
     model: 'gpt-4o-mini',
     provider: 'openai',
+    proxyMode: 'none',
   },
   {
-    id: 'ollama',
-    name: 'Ollama (本地)',
-    baseUrl: 'http://localhost:11434/v1',
-    apiKey: 'ollama',
-    model: 'llama3.2',
-    provider: 'ollama',
+    id: 'anthropic',
+    name: 'Anthropic',
+    baseUrl: 'https://api.anthropic.com',
+    apiKey: '',
+    model: 'claude-sonnet-4-6',
+    provider: 'anthropic',
+    proxyMode: 'none',
   },
 ];
 
@@ -278,7 +284,11 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     const saved = await loadSettings();
     if (saved) {
       set({
-        aiConfigs: saved.aiConfigs ?? DEFAULT_CONFIGS,
+        aiConfigs: (saved.aiConfigs ?? DEFAULT_CONFIGS).map((cfg) => ({
+          ...cfg,
+          provider: cfg.provider === ('ollama' as string) ? 'custom' : cfg.provider,
+          proxyMode: cfg.proxyMode ?? 'none',
+        })),
         activeAiConfigId: saved.activeAiConfigId ?? null,
         plantUmlTheme: saved.plantUmlTheme ?? DEFAULT_PLANTUML_THEME,
         plantUmlBackend: effectivePlantUmlBackend(
