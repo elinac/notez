@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   copySvgAsImageToClipboard,
@@ -97,12 +95,22 @@ describe('serializeSvgForCopy', () => {
     host.remove();
   });
 
-  it('strips processing instructions from JAR sequence fixture (tmp-seq.svg)', () => {
-    const fixture = readFileSync(resolve(process.cwd(), 'tmp-seq.svg'), 'utf8');
+  it('strips processing instructions from JAR sequence SVG fixture', () => {
     const host = document.createElement('div');
-    host.innerHTML = fixture;
+    host.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 149 160" class="plantuml-output plantuml-svg">
+        <g><text x="1" y="10">用户</text></g>
+      </svg>
+    `;
     const svg = host.querySelector('svg');
     expect(svg).not.toBeNull();
+    svg!.insertBefore(
+      document.createProcessingInstruction('plantuml', 'AqWiAibCpYn8p2jHU3vbnREExLm5I4BFvlG-xLhuVFLw'),
+      svg!.firstChild
+    );
+    const g = svg!.querySelector('g');
+    if (!g) throw new Error('missing g');
+    g.appendChild(document.createComment('?plantuml-src AqWiAibCpYn8p2jHU3vbnREExLm5I4BFvlG-xLhuVFLw?'));
     stripPlantumlMetadataFromSvgTree(svg!);
     const xml = serializeSvgForCopy(svg!);
     expect(xml).not.toContain('plantuml-src');

@@ -8,7 +8,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderMarkdownWithPlantUML } from '../PlantUMLRenderer';
 
 vi.mock('../plantuml-offline/PlantUMLOfflineRenderer', () => ({
-  renderPlantUMLOffline: vi.fn().mockResolvedValue('<svg data-testid="rendered">mocked</svg>'),
+  renderPlantUMLOffline: vi.fn().mockResolvedValue({
+    ok: true,
+    html: '<svg data-testid="rendered">mocked</svg>',
+  }),
 }));
 
 describe('PlantUML E2E - 代码块提取 (renderMarkdownWithPlantUML)', () => {
@@ -127,24 +130,32 @@ import { renderPlantUMLOffline } from '../plantuml-offline/PlantUMLOfflineRender
 describe('PlantUML E2E - 渲染集成 (renderPlantUMLOffline mock)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (renderPlantUMLOffline as ReturnType<typeof vi.fn>).mockResolvedValue(
-      '<svg xmlns="http://www.w3.org/2000/svg" class="plantuml-svg"><g><text>Bob</text><text>Alice</text></g></svg>'
-    );
+    (renderPlantUMLOffline as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      html: '<svg xmlns="http://www.w3.org/2000/svg" class="plantuml-svg"><g><text>Bob</text><text>Alice</text></g></svg>',
+    });
   });
 
   it('E2E-11: renderPlantUMLOffline 被调用并返回 SVG', async () => {
     const result = await renderPlantUMLOffline('@startuml\nBob -> Alice : hello\n@enduml');
-    expect(result).toContain('<svg');
-    expect(result).toContain('Bob');
-    expect(result).toContain('Alice');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.html).toContain('<svg');
+      expect(result.html).toContain('Bob');
+      expect(result.html).toContain('Alice');
+    }
   });
 
   it('E2E-12: 空输入被安全处理（不 throw）', async () => {
-    (renderPlantUMLOffline as ReturnType<typeof vi.fn>).mockResolvedValue(
-      '<div class="plantuml-error">渲染失败</div>'
-    );
+    (renderPlantUMLOffline as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: false,
+      source: '',
+      error: '渲染失败',
+    });
     const result = await renderPlantUMLOffline('');
-    expect(typeof result).toBe('string');
-    expect(result.length).toBeGreaterThan(0);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBe('渲染失败');
+    }
   });
 });

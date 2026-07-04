@@ -1,4 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('../plantuml-offline/PlantUMLOfflineRenderer', () => ({
+  renderPlantUMLOffline: vi.fn().mockResolvedValue({
+    ok: true,
+    html: '<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>',
+  }),
+}));
+
 import { codeBlockRenderPreview, getDiagramCodeBlockLanguages } from '../diagramRenderers';
 
 describe('getDiagramCodeBlockLanguages', () => {
