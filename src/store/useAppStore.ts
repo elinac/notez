@@ -112,7 +112,15 @@ interface AppState {
   /** 分屏左侧占比（仅内存，不 persist） */
   splitPaneRatioByTabId: Record<string, number>;
 
+  /** Whether the settings dialog is open (ephemeral, not persisted) */
+  settingsDialogOpen: boolean;
+
   // ── Actions ─────────────────────────────────────────────────────────────────
+
+  // Settings dialog actions
+  openSettingsDialog: () => void;
+  closeSettingsDialog: () => void;
+  toggleSettingsDialog: () => void;
 
   // Tab actions
   openTab: (file: NoteFile) => void;
@@ -217,6 +225,16 @@ export const useAppStore = create<AppState>()(
         fileTreeVersion: 0,
         _hasHydrated: false,
         splitPaneRatioByTabId: {},
+        settingsDialogOpen: false,
+
+        // ── Settings dialog actions ───────────────────────────────────────────
+        openSettingsDialog: () => set({ settingsDialogOpen: true, activeView: 'editor' }),
+        closeSettingsDialog: () => set({ settingsDialogOpen: false }),
+        toggleSettingsDialog: () =>
+          set((s) => ({
+            settingsDialogOpen: !s.settingsDialogOpen,
+            ...(s.settingsDialogOpen ? {} : { activeView: 'editor' }),
+          })),
 
         // ── Tab actions ───────────────────────────────────────────────────────
         openTab: (file) =>
