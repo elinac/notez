@@ -7,6 +7,8 @@
 import { create } from 'zustand';
 
 import { effectivePlantUmlBackend } from '../constants/buildFlags';
+import { DEFAULT_UI_FONT, DEFAULT_EDITOR_FONT, DEFAULT_CODE_FONT } from '../constants/fontDefaults';
+import type { FontConfig } from '../components/settings/settingsTypes';
 import {
   DEFAULT_EDITOR_COLOR_MODE,
   DEFAULT_EDITOR_THEME_ID,
@@ -81,6 +83,9 @@ export interface PersistedSettings {
   editorColorMode?: EditorColorMode;
   editorThemeId?: EditorThemeId;
   codeBlockThemeId?: string;
+  uiFontConfig?: FontConfig;
+  editorFontConfig?: FontConfig;
+  codeBlockFontConfig?: FontConfig;
 }
 
 export async function loadSettings(): Promise<PersistedSettings | null> {
@@ -130,6 +135,10 @@ interface SettingsState {
   editorColorMode: EditorColorMode;
   editorThemeId: EditorThemeId;
   codeBlockThemeId: string;
+  uiFontConfig: FontConfig;
+  editorFontConfig: FontConfig;
+  codeBlockFontConfig: FontConfig;
+  systemFonts: string[];
   /** Whether initial settings have been loaded from disk */
   loaded: boolean;
 
@@ -142,6 +151,10 @@ interface SettingsState {
   setEditorColorMode: (mode: EditorColorMode) => void;
   setEditorThemeId: (id: EditorThemeId) => void;
   setCodeBlockThemeId: (id: string) => void;
+  setUiFontConfig: (config: FontConfig) => void;
+  setEditorFontConfig: (config: FontConfig) => void;
+  setCodeBlockFontConfig: (config: FontConfig) => void;
+  loadSystemFonts: () => Promise<void>;
   getActiveConfig: () => AiProviderConfig | null;
   /** Load settings from disk (call once on app init) */
   initSettings: () => Promise<void>;
@@ -156,6 +169,9 @@ function persist(state: SettingsState) {
     editorColorMode: state.editorColorMode,
     editorThemeId: state.editorThemeId,
     codeBlockThemeId: state.codeBlockThemeId,
+    uiFontConfig: state.uiFontConfig,
+    editorFontConfig: state.editorFontConfig,
+    codeBlockFontConfig: state.codeBlockFontConfig,
   });
 }
 
@@ -172,6 +188,10 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   editorColorMode: DEFAULT_EDITOR_COLOR_MODE,
   editorThemeId: DEFAULT_EDITOR_THEME_ID,
   codeBlockThemeId: DEFAULT_CODE_BLOCK_THEME_ID,
+  uiFontConfig: DEFAULT_UI_FONT,
+  editorFontConfig: DEFAULT_EDITOR_FONT,
+  codeBlockFontConfig: DEFAULT_CODE_FONT,
+  systemFonts: [],
   loaded: false,
 
   setAiConfigs: (configs) => {
@@ -231,6 +251,22 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     persist(get());
   },
 
+  setUiFontConfig: (config) => { set({ uiFontConfig: config }); persist(get()); },
+  setEditorFontConfig: (config) => { set({ editorFontConfig: config }); persist(get()); },
+  setCodeBlockFontConfig: (config) => { set({ codeBlockFontConfig: config }); persist(get()); },
+
+  loadSystemFonts: async () => {
+    if (get().systemFonts.length > 0) return;
+    if (!isTauri()) return;
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const fonts = await invoke<string[]>('list_system_fonts');
+      set({ systemFonts: fonts });
+    } catch (err) {
+      console.error('Failed to load system fonts:', err);
+    }
+  },
+
   getActiveConfig: () => {
     const { aiConfigs, activeAiConfigId } = get();
     if (!activeAiConfigId) return aiConfigs[0] ?? null;
@@ -251,6 +287,9 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
         editorColorMode: normalizeEditorColorMode(saved.editorColorMode),
         editorThemeId: normalizeEditorThemeId(saved.editorThemeId),
         codeBlockThemeId: normalizeCodeBlockThemeId(saved.codeBlockThemeId),
+        uiFontConfig: saved.uiFontConfig ?? DEFAULT_UI_FONT,
+        editorFontConfig: saved.editorFontConfig ?? DEFAULT_EDITOR_FONT,
+        codeBlockFontConfig: saved.codeBlockFontConfig ?? DEFAULT_CODE_FONT,
         loaded: true,
       });
     } else {
