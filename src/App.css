@@ -642,6 +642,115 @@ svg.plantuml-rust {
   box-shadow: none;
 }
 
+/* ── PlantUML inline error code view (React) ── */
+.puml-error-code-view {
+  position: relative;
+  background: #fafafa;
+  border-radius: 6px;
+  font-family: var(--editor-font-family, ui-monospace, monospace);
+  font-size: 0.875rem;
+  max-height: 400px;
+  overflow: auto;
+}
+
+.puml-error-code-view--dark {
+  background: #1e1e1e;
+  color: #e5e5e5;
+}
+
+.puml-error-code-view__lang {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.puml-error-code-view__line {
+  display: flex;
+  min-height: var(--puml-line-height, 1.5rem);
+  line-height: var(--puml-line-height, 1.5rem);
+}
+
+.puml-error-code-view__line--err {
+  background: rgba(239, 68, 68, 0.12);
+  border-left: 3px solid #ef4444;
+}
+
+.puml-error-code-view--dark .puml-error-code-view__line--err {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.puml-error-code-view__line-no {
+  flex: 0 0 3rem;
+  text-align: right;
+  padding-right: 0.75rem;
+  color: #9ca3af;
+  user-select: none;
+}
+
+.puml-error-code-view__line--err .puml-error-code-view__line-no {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.puml-error-code-view__line-text {
+  flex: 1;
+  padding-right: 0.75rem;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.puml-error-code-view__bubble {
+  position: absolute;
+  left: 3rem;
+  right: 0.75rem;
+  z-index: 1;
+  background: #ffffff;
+  border-left: 3px solid #ef4444;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.puml-error-code-view--dark .puml-error-code-view__bubble {
+  background: #2d2d2d;
+}
+
+.puml-error-code-view__bubble--bottom {
+  position: static;
+  margin: 0.75rem;
+}
+
+.puml-error-code-view__bubble-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.puml-error-code-view__line-badge {
+  display: inline-block;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+}
+
+.puml-error-code-view__fix-btn {
+  align-self: flex-end;
+}
+
+/* 错误代码视图不需要 diagram zoom 工具栏 */
+.diagram-block:has(.puml-error-code-view) .diagram-tools,
+.diagram-preview:has(.puml-error-code-view) .diagram-zoom-viewport {
+  display: none;
+}
+
 /* Milkdown editor font overrides via CSS variables */
 .wysiwyg-editor .milkdown .ProseMirror {
   font-size: var(--notez-editor-font-size, 16px);
