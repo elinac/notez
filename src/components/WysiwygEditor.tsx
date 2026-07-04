@@ -29,6 +29,8 @@ export function WysiwygEditor({ content, onChange, scrollContainerRef, onCrepeRe
   const containerRef = useRef<HTMLDivElement>(null);
   const editorThemeId = useSettingsStore((s) => s.editorThemeId);
   const codeBlockThemeId = useSettingsStore((s) => s.codeBlockThemeId);
+  const editorFontConfig = useSettingsStore((s) => s.editorFontConfig);
+  const codeBlockFontConfig = useSettingsStore((s) => s.codeBlockFontConfig);
   const effectiveColorMode = useEffectiveEditorColorMode();
 
   useCrepeThemeStylesheet(editorThemeId, effectiveColorMode);
@@ -109,6 +111,10 @@ export function WysiwygEditor({ content, onChange, scrollContainerRef, onCrepeRe
     <div
       ref={setContainerRef}
       className="wysiwyg-editor h-full overflow-auto"
+      style={{
+        '--crepe-font-default': editorFontConfig.fontFamily,
+        '--crepe-font-code': codeBlockFontConfig.fontFamily,
+      } as React.CSSProperties}
     />
   );
 }
