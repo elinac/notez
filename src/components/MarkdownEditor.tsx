@@ -20,6 +20,19 @@ import { Columns2, FileEdit, Wand2, List } from 'lucide-react';
 const SPLIT_GUTTER_PX = 6;
 const editorThemeCompartment = new Compartment();
 const codeBlockSyntaxCompartment = new Compartment();
+const fontCompartment = new Compartment();
+
+function getFontExtension(editorFont: { fontFamily: string; fontSize: number }) {
+  return EditorView.theme({
+    '.cm-content': {
+      fontFamily: editorFont.fontFamily,
+      fontSize: `${editorFont.fontSize}px`,
+    },
+    '.cm-gutters': {
+      fontSize: `${editorFont.fontSize}px`,
+    },
+  });
+}
 
 interface MarkdownEditorProps {
   content: string;
@@ -60,6 +73,7 @@ export function MarkdownEditor({ content, onChange }: MarkdownEditorProps) {
   const effectiveColorMode = useEffectiveEditorColorMode();
   const editorThemeId = useSettingsStore((s) => s.editorThemeId);
   const codeBlockThemeId = useSettingsStore((s) => s.codeBlockThemeId);
+  const editorFontConfig = useSettingsStore((s) => s.editorFontConfig);
 
   const showPreviewPane = editorMode === 'split';
   const showWysiwyg = editorMode === 'wysiwyg';
@@ -75,6 +89,7 @@ export function MarkdownEditor({ content, onChange }: MarkdownEditorProps) {
         markdown({ codeLanguages: [...languages, ...diagramLangs] }),
         editorThemeCompartment.of(getSourceEditorChrome(effectiveColorMode)),
         codeBlockSyntaxCompartment.of(getCodeBlockSyntaxExtension(codeBlockThemeId)),
+        fontCompartment.of(getFontExtension(editorFontConfig)),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             onChange(update.state.doc.toString());
@@ -106,6 +121,14 @@ export function MarkdownEditor({ content, onChange }: MarkdownEditorProps) {
       ],
     });
   }, [effectiveColorMode, codeBlockThemeId]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: fontCompartment.reconfigure(getFontExtension(editorFontConfig)),
+    });
+  }, [editorFontConfig]);
 
   useEffect(() => {
     const view = viewRef.current;
