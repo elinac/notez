@@ -88,9 +88,24 @@ function App() {
   );
 
   const { initSettings } = useSettingsStore();
+  const uiFontConfig = useSettingsStore((s) => s.uiFontConfig);
+  const editorFontConfig = useSettingsStore((s) => s.editorFontConfig);
+  const codeBlockFontConfig = useSettingsStore((s) => s.codeBlockFontConfig);
 
   // Load settings from disk on startup
   useEffect(() => { initSettings(); }, []);
+
+  // Inject font CSS variables into :root
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--notez-ui-font-family', uiFontConfig.fontFamily);
+    root.style.setProperty('--notez-ui-font-size', `${uiFontConfig.fontSize}px`);
+    root.style.setProperty('--notez-ui-line-height', `${Math.round(uiFontConfig.fontSize * 1.5)}px`);
+    root.style.setProperty('--notez-editor-font-family', editorFontConfig.fontFamily);
+    root.style.setProperty('--notez-editor-font-size', `${editorFontConfig.fontSize}px`);
+    root.style.setProperty('--notez-code-font-family', codeBlockFontConfig.fontFamily);
+    root.style.setProperty('--notez-code-font-size', `${codeBlockFontConfig.fontSize}px`);
+  }, [uiFontConfig, editorFontConfig, codeBlockFontConfig]);
 
   // PlantUML error UI: delegate AI fix button clicks (preview + WYSIWYG innerHTML)
   useEffect(() => {

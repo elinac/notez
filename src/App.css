@@ -39,9 +39,9 @@ body::-webkit-scrollbar {
 }
 
 :root {
-  font-family: "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
-  font-size: 16px;
-  line-height: 24px;
+  font-family: var(--notez-ui-font-family, "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif);
+  font-size: var(--notez-ui-font-size, 16px);
+  line-height: var(--notez-ui-line-height, 24px);
   font-weight: 400;
   color: #0f0f0f;
   background-color: transparent;
@@ -192,7 +192,7 @@ svg.plantuml-rust {
   font-size: 12px;
   line-height: 16px;
   font-weight: 600;
-  font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  font-family: var(--notez-ui-font-family, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -319,7 +319,7 @@ svg.plantuml-rust {
   font-size: 13px;
   line-height: 1.4;
   font-weight: 500;
-  font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  font-family: var(--notez-ui-font-family, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif);
   color: #fff;
   background: rgba(32, 33, 36, 0.92);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
@@ -563,7 +563,7 @@ svg.plantuml-rust {
   width: max-content;
   min-width: 100%;
   max-width: none;
-  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-family: var(--notez-code-font-family, ui-monospace, "Cascadia Code", Consolas, monospace);
   font-size: 11px;
   line-height: 1.2;
   text-align: left;
@@ -640,4 +640,12 @@ svg.plantuml-rust {
   font-weight: inherit;
   color: inherit;
   box-shadow: none;
+}
+
+/* Milkdown editor font overrides via CSS variables */
+.wysiwyg-editor .milkdown .ProseMirror {
+  font-size: var(--notez-editor-font-size, 16px);
+}
+.wysiwyg-editor .milkdown .ProseMirror pre code {
+  font-size: var(--notez-code-font-size, 14px);
 }
