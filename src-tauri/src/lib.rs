@@ -1,3 +1,4 @@
+mod ai_service;
 mod font_service;
 mod plantuml_native;
 mod plantuml_runtime;
@@ -69,7 +70,9 @@ pub fn run() {
             greet,
             plantuml_runtime::render_plantuml_local,
             plantuml_runtime::plantuml_runtime_available,
-            font_service::list_system_fonts
+            font_service::list_system_fonts,
+            ai_service::ai_chat_stream,
+            ai_service::ai_list_models
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

@@ -31,6 +31,8 @@ flate2 = "1"
 chrono = "0.4"
 rust-sugiyama = "0.4"
 font-kit = "0.14"
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "socks", "rustls-tls"] }
+futures-util = "0.3"
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-window-state = "2"
