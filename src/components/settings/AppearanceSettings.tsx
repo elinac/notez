@@ -1,7 +1,11 @@
+import { useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { EDITOR_COLOR_MODE_OPTIONS, EDITOR_THEME_OPTIONS } from '../../constants/editorThemes';
 import { CODE_BLOCK_THEME_OPTIONS } from '../../constants/codeBlockThemes';
+import { FontPicker } from './FontPicker';
+import { FontSizeStepper } from './FontSizeStepper';
+import { RECOMMENDED_FONTS } from '../../constants/fontDefaults';
 
 function SettingsSelect<T extends string>({
   label, value, options, onChange,
@@ -29,7 +33,13 @@ export function AppearanceSettings() {
     editorColorMode, setEditorColorMode,
     editorThemeId, setEditorThemeId,
     codeBlockThemeId, setCodeBlockThemeId,
+    uiFontConfig, setUiFontConfig,
+    editorFontConfig, setEditorFontConfig,
+    codeBlockFontConfig, setCodeBlockFontConfig,
+    systemFonts, loadSystemFonts,
   } = useSettingsStore();
+
+  useEffect(() => { loadSystemFonts(); }, [loadSystemFonts]);
 
   return (
     <div>
@@ -45,6 +55,43 @@ export function AppearanceSettings() {
       <p className="text-[10px] text-gray-400 -mt-2 mb-4 leading-snug">
         代码块语法主题与编辑器明/暗独立，可自由组合。
       </p>
+
+      <div className="border-t border-gray-200 pt-4 mt-4">
+        <h3 className="text-xs font-semibold text-gray-700 mb-3">字体设置</h3>
+
+        <div className="mb-4">
+          <label className="block text-xs text-gray-500 mb-1.5">应用界面字体</label>
+          <div className="flex items-center gap-2">
+            <div className="flex-1 max-w-[200px]">
+              <FontPicker value={uiFontConfig.fontFamily} onChange={(f) => setUiFontConfig({ ...uiFontConfig, fontFamily: f })}
+                recommended={RECOMMENDED_FONTS.ui} systemFonts={systemFonts} />
+            </div>
+            <FontSizeStepper value={uiFontConfig.fontSize} onChange={(s) => setUiFontConfig({ ...uiFontConfig, fontSize: s })} />
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-xs text-gray-500 mb-1.5">编辑器字体</label>
+          <div className="flex items-center gap-2">
+            <div className="flex-1 max-w-[200px]">
+              <FontPicker value={editorFontConfig.fontFamily} onChange={(f) => setEditorFontConfig({ ...editorFontConfig, fontFamily: f })}
+                recommended={RECOMMENDED_FONTS.editor} systemFonts={systemFonts} />
+            </div>
+            <FontSizeStepper value={editorFontConfig.fontSize} onChange={(s) => setEditorFontConfig({ ...editorFontConfig, fontSize: s })} />
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-xs text-gray-500 mb-1.5">代码块字体</label>
+          <div className="flex items-center gap-2">
+            <div className="flex-1 max-w-[200px]">
+              <FontPicker value={codeBlockFontConfig.fontFamily} onChange={(f) => setCodeBlockFontConfig({ ...codeBlockFontConfig, fontFamily: f })}
+                recommended={RECOMMENDED_FONTS.code} systemFonts={systemFonts} />
+            </div>
+            <FontSizeStepper value={codeBlockFontConfig.fontSize} onChange={(s) => setCodeBlockFontConfig({ ...codeBlockFontConfig, fontSize: s })} />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
