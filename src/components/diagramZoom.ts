@@ -309,9 +309,11 @@ export function ensureWysiwygDiagramZoomToolbars(root: HTMLElement): number {
     resetBtn.textContent = '重置';
     resetBtn.title = '重置缩放';
 
-    const copyBtn = group.querySelector('.copy-button');
+    const copyAnchor =
+      group.querySelector(':scope > .copy-button') ??
+      group.querySelector(':scope > .diagram-copy-group');
     for (const node of [outBtn, label, inBtn, resetBtn]) {
-      group.insertBefore(node, copyBtn);
+      group.insertBefore(node, copyAnchor);
     }
 
     bindDiagramZoomToolbar(group, () => controller);
