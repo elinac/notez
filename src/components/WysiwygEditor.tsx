@@ -21,9 +21,11 @@ interface WysiwygEditorProps {
   onChange: (content: string) => void;
   /** Exposes the scroll container for outline navigation. */
   scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
+  /** Called when the Crepe editor instance is ready. */
+  onCrepeReady?: (crepe: Crepe) => void;
 }
 
-export function WysiwygEditor({ content, onChange, scrollContainerRef }: WysiwygEditorProps) {
+export function WysiwygEditor({ content, onChange, scrollContainerRef, onCrepeReady }: WysiwygEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorThemeId = useSettingsStore((s) => s.editorThemeId);
   const codeBlockThemeId = useSettingsStore((s) => s.codeBlockThemeId);
@@ -77,6 +79,7 @@ export function WysiwygEditor({ content, onChange, scrollContainerRef }: Wysiwyg
 
     crepe.create().then(() => {
       crepeRef.current = crepe;
+      onCrepeReady?.(crepe);
       if (containerRef.current) {
         stopZoomObserver = startWysiwygDiagramZoomObserver(containerRef.current);
         stopCopyObserver = startWysiwygDiagramCopyObserver(containerRef.current);

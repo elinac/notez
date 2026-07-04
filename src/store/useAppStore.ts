@@ -86,6 +86,8 @@ interface AppState {
 
   // Editor display mode
   editorMode: EditorMode;
+  /** Whether the formatting toolbar is visible (persisted) */
+  showFormattingToolbar: boolean;
 
   // Sidebar
   sidebarPanel: SidebarPanel;
@@ -133,6 +135,7 @@ interface AppState {
 
   // Editor mode actions
   setEditorMode: (mode: EditorMode) => void;
+  setShowFormattingToolbar: (show: boolean) => void;
   setSplitPaneRatio: (tabId: string, ratio: number) => void;
 
   // Sidebar / panel actions
@@ -158,6 +161,7 @@ type PersistedAppSlice = Pick<
   | 'activeTabId'
   | 'tasks'
   | 'editorMode'
+  | 'showFormattingToolbar'
   | 'workspaceDirs'
   | 'sidebarPanel'
   | 'filePanelWidth'
@@ -202,6 +206,7 @@ export const useAppStore = create<AppState>()(
         tasks: [],
         activeView: 'editor',
         editorMode: 'split',
+        showFormattingToolbar: true,
         sidebarPanel: 'files',
         workspaceDirs: [],
         rightPanel: null,
@@ -385,6 +390,7 @@ export const useAppStore = create<AppState>()(
 
         // Editor mode actions
         setEditorMode: (mode) => set({ editorMode: mode }),
+        setShowFormattingToolbar: (show) => set({ showFormattingToolbar: show }),
         setSplitPaneRatio: (tabId, ratio) =>
           set((s) => ({
             splitPaneRatioByTabId: {
@@ -408,6 +414,7 @@ export const useAppStore = create<AppState>()(
           activeTabId: p.activeTabId ?? '',
           tasks: p.tasks ?? [],
           editorMode: p.editorMode ?? 'split',
+          showFormattingToolbar: p.showFormattingToolbar ?? true,
           workspaceDirs: p.workspaceDirs ?? [],
           sidebarPanel: p.sidebarPanel ?? 'files',
           filePanelWidth:
@@ -448,6 +455,7 @@ export const useAppStore = create<AppState>()(
           activeTabId,
           tasks: state.tasks,
           editorMode: state.editorMode,
+          showFormattingToolbar: state.showFormattingToolbar,
           workspaceDirs: state.workspaceDirs,
           sidebarPanel: state.sidebarPanel,
           filePanelWidth: state.filePanelWidth,

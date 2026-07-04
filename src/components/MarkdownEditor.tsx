@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useRef, useState, useCallback, type PointerEvent as ReactPointerEvent } from 'react';
 import { EditorView, basicSetup } from 'codemirror';
 import { Compartment, EditorState } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
+import type { Crepe } from '@milkdown/crepe';
 import { PlantUMLRenderer } from './PlantUMLRenderer';
 import { WysiwygEditor } from './WysiwygEditor';
+import { FormattingToolbar } from './FormattingToolbar';
 import { OutlinePanel } from './OutlinePanel';
 import { useAppStore, EditorMode } from '../store/useAppStore';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -45,6 +47,10 @@ export function MarkdownEditor({ content, onChange }: MarkdownEditorProps) {
   const [editingTitle, setEditingTitle] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const [showOutline, setShowOutline] = useState(false);
+  const crepeRef = useRef<Crepe | null>(null);
+  const handleCrepeReady = useCallback((crepe: Crepe) => {
+    crepeRef.current = crepe;
+  }, []);
   const splitContainerRef = useRef<HTMLDivElement>(null);
   const wysiwygContainerRef = useRef<HTMLDivElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
@@ -214,6 +220,13 @@ export function MarkdownEditor({ content, onChange }: MarkdownEditorProps) {
         </button>
       </div>
 
+      {/* Formatting toolbar */}
+      <FormattingToolbar
+        editorMode={editorMode}
+        viewRef={viewRef}
+        crepeRef={crepeRef}
+      />
+
       {/* Editor body — relative container for outline overlay */}
       <div className="flex-1 overflow-hidden relative">
         {/* Outline floating panel */}
@@ -235,6 +248,7 @@ export function MarkdownEditor({ content, onChange }: MarkdownEditorProps) {
               content={content}
               onChange={onChange}
               scrollContainerRef={wysiwygContainerRef}
+              onCrepeReady={handleCrepeReady}
             />
           </div>
         )}
