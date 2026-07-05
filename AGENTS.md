@@ -55,7 +55,7 @@ cd src-tauri && cargo build --release
 ## Known Gotchas
 
 - **npm install 后必须运行 postinstall**：`patch-package` 补丁在 `postinstall` 钩子中自动执行，若跳过会导致依赖问题。
-- **Vite 端口固定 3000**：`vite.config.ts` 中 `strictPort: false`，但 Tauri `devUrl` 硬编码 3000，占用会导致启动失败。
+- **Vite 端口固定 3000**：`vite.config.ts` 中 `strictPort: true`（与 Tauri `devUrl` 硬编码 3000 对齐）；端口被占用会导致 `tauri dev` 启动失败。
 - **PlantUML 资源路径**：`src-tauri/resources/plantuml-runtime/` 必须包含 `jre/`、`plantuml.jar`、`graphviz/`，构建时由 `tauri.conf.json` 打包。
 - **日志文件位置**：PlantUML 日志写入可执行文件同目录 `notez-plantuml.log`，调试时检查此文件。
 - **URL 编码阈值**：PlantUML deflate 编码后超过 6000 字符会自动回退到 `-pipe` 模式，避免 Jetty/浏览器截断 URL。
