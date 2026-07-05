@@ -62,7 +62,9 @@
       }
     ],
     "resources": [
-      "resources/plantuml-runtime/"
+      "resources/plantuml-runtime/",
+      "../LICENSE",
+      "../THIRD_PARTY_NOTICES.md"
     ]
   }
 }

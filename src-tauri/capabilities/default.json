@@ -18,6 +18,10 @@
     "fs:allow-read-dir",
     "fs:allow-mkdir",
     "core:path:default",
-    "window-state:default"
+    "window-state:default",
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [{ "path": "$RESOURCE/**/*" }]
+    }
   ]
 }
