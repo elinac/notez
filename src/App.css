@@ -209,6 +209,88 @@ svg.plantuml-rust {
   background: #d8d8d8;
 }
 
+/* Diagram copy — split-pane preview toolbar */
+.markdown-split-preview .diagram-tools-button-group .diagram-copy-group {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+  margin-right: 4px;
+}
+
+.markdown-split-preview .diagram-tools-button-group .diagram-copy-main,
+.markdown-split-preview .diagram-tools-button-group .diagram-copy-caret {
+  background: #e8e8e8;
+  color: #49454f;
+  padding: 4px 8px;
+  cursor: default;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  font-family: var(--notez-ui-font-family, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.markdown-split-preview .diagram-tools-button-group .diagram-copy-main {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  padding: 4px 8px;
+}
+
+.markdown-split-preview .diagram-tools-button-group .diagram-copy-main svg {
+  width: 14px;
+  height: 14px;
+}
+
+.markdown-split-preview .diagram-tools-button-group .diagram-copy-caret {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  margin-left: 1px;
+  padding: 4px 6px;
+  font-size: 10px;
+}
+
+.markdown-split-preview .diagram-tools-button-group .diagram-copy-main:hover,
+.markdown-split-preview .diagram-tools-button-group .diagram-copy-caret:hover {
+  background: #d8d8d8;
+}
+
+.markdown-split-preview .diagram-tools-button-group .diagram-copy-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 50;
+  min-width: 7.5rem;
+  padding: 4px;
+  border-radius: 6px;
+  background: #fff;
+  border: 1px solid #d8d8d8;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.markdown-split-preview .diagram-tools-button-group .diagram-copy-menu-item {
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: #49454f;
+  cursor: default;
+  user-select: none;
+}
+
+.markdown-split-preview .diagram-tools-button-group .diagram-copy-menu-item:hover {
+  background: #e8e8e8;
+}
+
+.markdown-split-preview .diagram-tools-button-group .diagram-copy-menu-item.is-active {
+  background: #e8e8e8;
+  color: #1a73e8;
+}
+
 .markdown-split-preview .diagram-zoom-viewport {
   overflow: auto;
   max-width: 100%;
@@ -481,7 +563,11 @@ svg.plantuml-rust {
 /* 主操作：足够对比度 + 点击区域 ≥ 32px */
 .prose .plantuml-error .plantuml-ai-fix-btn,
 .diagram-color-fix .plantuml-error .plantuml-ai-fix-btn,
-.plantuml-error .plantuml-ai-fix-btn {
+.plantuml-error .plantuml-ai-fix-btn,
+.prose .puml-error-code-view .plantuml-ai-fix-btn,
+.diagram-color-fix .puml-error-code-view .plantuml-ai-fix-btn,
+.diagram-preview .puml-error-code-view .plantuml-ai-fix-btn,
+.puml-error-code-view .plantuml-ai-fix-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -507,14 +593,22 @@ svg.plantuml-rust {
 
 .prose .plantuml-error .plantuml-ai-fix-btn:hover,
 .diagram-color-fix .plantuml-error .plantuml-ai-fix-btn:hover,
-.plantuml-error .plantuml-ai-fix-btn:hover {
+.plantuml-error .plantuml-ai-fix-btn:hover,
+.prose .puml-error-code-view .plantuml-ai-fix-btn:hover,
+.diagram-color-fix .puml-error-code-view .plantuml-ai-fix-btn:hover,
+.diagram-preview .puml-error-code-view .plantuml-ai-fix-btn:hover,
+.puml-error-code-view .plantuml-ai-fix-btn:hover {
   background: #1d4ed8;
   color: #ffffff;
 }
 
 .prose .plantuml-error .plantuml-ai-fix-btn:focus-visible,
 .diagram-color-fix .plantuml-error .plantuml-ai-fix-btn:focus-visible,
-.plantuml-error .plantuml-ai-fix-btn:focus-visible {
+.plantuml-error .plantuml-ai-fix-btn:focus-visible,
+.prose .puml-error-code-view .plantuml-ai-fix-btn:focus-visible,
+.diagram-color-fix .puml-error-code-view .plantuml-ai-fix-btn:focus-visible,
+.diagram-preview .puml-error-code-view .plantuml-ai-fix-btn:focus-visible,
+.puml-error-code-view .plantuml-ai-fix-btn:focus-visible {
   outline: 2px solid #2563eb;
   outline-offset: 2px;
 }
@@ -643,14 +737,51 @@ svg.plantuml-rust {
 }
 
 /* ── PlantUML inline error code view (React) ── */
+.diagram-zoom-content:has(.puml-error-code-view),
+.plantuml-container:has(.puml-error-code-view) {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.plantuml-container:has(.puml-error-code-view) {
+  padding: 0;
+  background: transparent;
+}
+
+.diagram-block:has(.puml-error-code-view) .diagram-zoom-viewport {
+  min-height: min(320px, 50vh);
+  overflow: auto;
+}
+
+.diagram-preview--error {
+  padding: 0;
+}
+
+/* Crepe `.preview-panel .preview { text-align: center }` is for SVG; error source must read like code */
+.milkdown .milkdown-code-block:has(.puml-error-code-view) .preview-panel .preview {
+  text-align: left;
+}
+
+.milkdown .milkdown-code-block:has(.puml-error-code-view) .diagram-preview,
+.milkdown .milkdown-code-block:has(.puml-error-code-view) .puml-error-code-view-wysiwyg-host {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .puml-error-code-view {
-  position: relative;
   background: #fafafa;
   border-radius: 6px;
   font-family: var(--editor-font-family, ui-monospace, monospace);
   font-size: 0.875rem;
-  max-height: 400px;
-  overflow: auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 200px;
+  padding-bottom: 0.75rem;
+  box-sizing: border-box;
+  text-align: left;
 }
 
 .puml-error-code-view--dark {
@@ -663,6 +794,10 @@ svg.plantuml-rust {
   font-size: 0.75rem;
   color: #6b7280;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.puml-error-code-view__lines {
+  position: relative;
 }
 
 .puml-error-code-view__line {
@@ -698,13 +833,10 @@ svg.plantuml-rust {
   padding-right: 0.75rem;
   white-space: pre;
   overflow-x: auto;
+  text-align: left;
 }
 
 .puml-error-code-view__bubble {
-  position: absolute;
-  left: 3rem;
-  right: 0.75rem;
-  z-index: 1;
   background: #ffffff;
   border-left: 3px solid #ef4444;
   border-radius: 6px;
@@ -715,13 +847,60 @@ svg.plantuml-rust {
   gap: 0.5rem;
 }
 
-.puml-error-code-view--dark .puml-error-code-view__bubble {
-  background: #2d2d2d;
+.puml-error-code-view__bubble--callout {
+  position: absolute;
+  top: 0;
+  right: 0.75rem;
+  width: 280px;
+  max-width: calc(100% - 4rem);
+  z-index: 2;
+  margin: 0;
+  border-left: none;
+  border-top: 3px solid #ef4444;
+}
+
+.puml-error-code-view__bubble--callout::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 0.65rem;
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-right: 6px solid #ffffff;
+  filter: drop-shadow(-1px 0 0 rgba(0, 0, 0, 0.06));
+}
+
+.puml-error-code-view--dark .puml-error-code-view__bubble--callout::before {
+  border-right-color: #2d2d2d;
+}
+
+@media (max-width: 520px) {
+  .puml-error-code-view--callout .puml-error-code-view__lines {
+    padding-right: 0 !important;
+  }
+
+  .puml-error-code-view__bubble--callout {
+    position: static;
+    width: auto;
+    max-width: none;
+    margin: 0.5rem 0.75rem 0;
+    border-top: none;
+    border-left: 3px solid #ef4444;
+  }
+
+  .puml-error-code-view__bubble--callout::before {
+    display: none;
+  }
 }
 
 .puml-error-code-view__bubble--bottom {
-  position: static;
   margin: 0.75rem;
+}
+
+.puml-error-code-view--dark .puml-error-code-view__bubble {
+  background: #2d2d2d;
 }
 
 .puml-error-code-view__bubble-main {
@@ -745,9 +924,15 @@ svg.plantuml-rust {
   align-self: flex-end;
 }
 
-/* 错误代码视图不需要 diagram zoom 工具栏 */
-.diagram-block:has(.puml-error-code-view) .diagram-tools,
-.diagram-preview:has(.puml-error-code-view) .diagram-zoom-viewport {
+/* 错误代码视图：仅隐藏缩放控件，保留复制与预览切换 */
+.diagram-block:has(.puml-error-code-view) .diagram-zoom-out,
+.diagram-block:has(.puml-error-code-view) .diagram-zoom-in,
+.diagram-block:has(.puml-error-code-view) .diagram-zoom-reset,
+.diagram-block:has(.puml-error-code-view) .diagram-zoom-label,
+.milkdown-code-block:has(.diagram-preview--error) .tools-button-group .diagram-zoom-out,
+.milkdown-code-block:has(.diagram-preview--error) .tools-button-group .diagram-zoom-in,
+.milkdown-code-block:has(.diagram-preview--error) .tools-button-group .diagram-zoom-reset,
+.milkdown-code-block:has(.diagram-preview--error) .tools-button-group .diagram-zoom-label {
   display: none;
 }
 

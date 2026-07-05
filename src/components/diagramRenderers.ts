@@ -130,13 +130,24 @@ export async function renderDiagramPreview(
 
   try {
     const result = await renderer(code);
-    if (typeof result !== 'string' && result.querySelector?.('.puml-error-code-view')) {
-      applyPreview(result);
+    const isError =
+      typeof result !== 'string' &&
+      Boolean(result.querySelector?.('.puml-error-code-view'));
+
+    const wrapper = document.createElement('div');
+    wrapper.className = `diagram-preview diagram-${language.toLowerCase()} diagram-color-fix p-2${
+      isError ? ' diagram-preview--error' : ''
+    }`;
+    wrapper.dataset.diagramZoomRoot = '';
+    if (isError) {
+      wrapper.dataset.diagramErrorPreview = '1';
+    }
+
+    if (isError && typeof result !== 'string') {
+      wrapper.appendChild(result);
+      applyPreview(wrapper);
       return true;
     }
-    const wrapper = document.createElement('div');
-    wrapper.className = `diagram-preview diagram-${language.toLowerCase()} diagram-color-fix p-2`;
-    wrapper.dataset.diagramZoomRoot = '';
 
     const content = document.createElement('div');
     if (typeof result === 'string') {

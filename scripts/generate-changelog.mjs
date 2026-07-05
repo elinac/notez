@@ -75,6 +75,14 @@ function buildSection(commits) {
   return md;
 }
 
+function replaceVersionSection(existing, version, entry) {
+  const pattern = new RegExp(`^## \\[${version.replace(/\./g, '\\.')}\\][\\s\\S]*?(?=^## \\[|\\Z)`, 'm');
+  if (pattern.test(existing)) {
+    return existing.replace(pattern, entry);
+  }
+  return existing.replace(/^# Changelog\n\n/, `# Changelog\n\n${entry}`);
+}
+
 function main() {
   const args = parseArgs(process.argv);
   const version = args.version ?? readPackageVersion();
@@ -91,7 +99,7 @@ function main() {
     ? ''
     : '# Changelog\n\nAll notable changes to NoteZ are documented here.\n\n';
   const body = existing.startsWith('# Changelog')
-    ? existing.replace(/^# Changelog\n\n/, `# Changelog\n\n${entry}`)
+    ? replaceVersionSection(existing, version, entry)
     : `${header}${entry}`;
   writeFileSync(changelogPath, body);
   console.log(`Wrote CHANGELOG.md section [${version}]`);

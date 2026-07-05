@@ -51,7 +51,7 @@ export function HeadingDropdown({ currentLevel, onSelect }: HeadingDropdownProps
 
       {open && (
         <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 py-1 min-w-[5rem]">
-          {HEADING_OPTIONS.map(({ level, label, display }) => (
+          {HEADING_OPTIONS.map(({ level, display }) => (
             <button
               key={level}
               onClick={() => {

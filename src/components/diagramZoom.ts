@@ -233,7 +233,7 @@ export function diagramBlockShellHtml(
   dataValue: string,
   loadingHtml: string
 ): string {
-  return `<div class="diagram-block diagram-color-fix my-4 border rounded overflow-hidden" data-diagram-type="${type}" data-diagram-zoom-root>
+  return `<div class="diagram-block diagram-color-fix my-4 border rounded overflow-hidden" data-diagram-type="${type}" data-diagram-source="${dataValue}" data-diagram-zoom-root>
   <div class="diagram-tools">
     <div class="diagram-tools-spacer"></div>
     <div class="diagram-tools-button-group">

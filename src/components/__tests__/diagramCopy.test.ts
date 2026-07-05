@@ -3,7 +3,10 @@ import * as diagramCopyImage from '../diagramCopyImage';
 import {
   copyDiagramCode,
   copyDiagramImage,
+  decodeHtmlEntities,
+  ensureSplitPaneDiagramCopyToolbars,
   ensureWysiwygDiagramCopyToolbars,
+  getSplitPaneDiagramSource,
   installDiagramCopyGlobalBridge,
   type DiagramCopyMode,
 } from '../diagramCopy';
@@ -125,6 +128,43 @@ describe('ensureWysiwygDiagramCopyToolbars', () => {
     expect(host.querySelector('.copy-button:not(.diagram-copy-main)')).toBeNull();
 
     host.remove();
+  });
+});
+
+describe('ensureSplitPaneDiagramCopyToolbars', () => {
+  it('prepends copy group to split-pane diagram blocks', () => {
+    const host = document.createElement('div');
+    host.innerHTML = `
+      <div class="diagram-block" data-diagram-type="plantuml" data-diagram-source="@startuml&amp;na-&gt;b@enduml" data-diagram-zoom-root>
+        <div class="diagram-tools">
+          <div class="diagram-tools-button-group">
+            <button type="button" class="diagram-zoom-out">−</button>
+          </div>
+        </div>
+        <div class="diagram-zoom-viewport">
+          <div class="plantuml-container"></div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(host);
+
+    const injected = ensureSplitPaneDiagramCopyToolbars(host);
+    expect(injected).toBe(1);
+    const group = host.querySelector('.diagram-tools-button-group');
+    expect(group?.firstElementChild?.classList.contains('diagram-copy-group')).toBe(true);
+
+    host.remove();
+  });
+
+  it('reads source from data-diagram-source after container cleared', () => {
+    const block = document.createElement('div');
+    block.className = 'diagram-block';
+    block.dataset.diagramType = 'plantuml';
+    block.dataset.diagramSource = '@startuml&amp;Alice-&gt;&gt;Bob@enduml';
+    block.innerHTML = '<div class="plantuml-container"></div>';
+
+    expect(getSplitPaneDiagramSource(block)).toBe('@startuml&Alice->>Bob@enduml');
+    expect(decodeHtmlEntities('@startuml&amp;test')).toBe('@startuml&test');
   });
 });
 

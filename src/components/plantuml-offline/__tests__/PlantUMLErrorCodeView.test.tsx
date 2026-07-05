@@ -50,6 +50,8 @@ describe('PlantUMLErrorCodeView', () => {
     expect(screen.getByText('Alice ->> Bob missing colon')).toBeTruthy();
     const errRow = screen.getByText('Alice ->> Bob missing colon').closest('.puml-error-code-view__line--err');
     expect(errRow).toBeTruthy();
+    expect(errRow?.nextElementSibling?.classList.contains('puml-error-code-view__line')).toBe(true);
+    expect(document.querySelector('.puml-error-code-view__bubble--callout')).toBeTruthy();
     expect(screen.getByRole('alert').textContent).toMatch(/第 4 行/);
     expect(screen.getByRole('alert').textContent).toMatch(/Syntax Error/);
   });
@@ -60,6 +62,7 @@ describe('PlantUMLErrorCodeView', () => {
     );
     expect(screen.queryByText(/第 \d+ 行/)).toBeNull();
     expect(screen.getByRole('alert').textContent).toMatch(/unknown error/);
+    expect(document.querySelector('.puml-error-code-view__bubble--bottom')).toBeTruthy();
     expect(document.querySelector('.puml-error-code-view__line--err')).toBeNull();
   });
 

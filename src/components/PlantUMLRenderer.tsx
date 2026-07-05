@@ -6,6 +6,7 @@ import { PlantUMLErrorCodeView } from './plantuml-offline/PlantUMLErrorCodeView'
 import { scopeSvgIdsForHtmlDocument } from './plantuml-offline/scopeSvgIdsForHtmlDocument';
 import { formatMermaidErrorHtml, renderMermaidSvg } from './mermaidSingleton';
 import { diagramBlockShellHtml, initDiagramBlockZoom } from './diagramZoom';
+import { ensureSplitPaneDiagramCopyToolbars } from './diagramCopy';
 
 interface PlantUMLRendererProps {
   content: string;
@@ -172,6 +173,7 @@ export function PlantUMLRenderer({ content, previewDocumentId = '' }: PlantUMLRe
     for (const block of containerRef.current.querySelectorAll<HTMLElement>('.diagram-block')) {
       initDiagramBlockZoom(block);
     }
+    ensureSplitPaneDiagramCopyToolbars(containerRef.current);
 
     // Step 2: async-render PlantUML blocks（串行：并行会同时起多 JVM，严重卡顿）
     const plantUMLBlocks = Array.from(

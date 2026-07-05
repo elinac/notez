@@ -1,6 +1,6 @@
 /**
  * Copy bridge for Milkdown diagram code blocks (PlantUML / Mermaid).
- * Used by patches/@milkdown+components patch via window.__notezDiagramCopy.
+ * Exposes window.__notezDiagramCopy for toolbar buttons injected into code blocks.
  */
 
 import { showToast } from '../utils/toast';
@@ -19,6 +19,15 @@ function readStoredMode(): DiagramCopyMode {
 
 function writeStoredMode(mode: DiagramCopyMode): void {
   sessionStorage.setItem(MODE_STORAGE_KEY, mode);
+}
+
+export function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'");
 }
 
 export async function copyDiagramCode(text: string): Promise<boolean> {
@@ -118,12 +127,34 @@ function isWysiwygDiagramCodeBlock(block: Element): boolean {
   return DIAGRAM_LANGS.has(lang);
 }
 
+function isSplitPaneDiagramBlock(block: Element): boolean {
+  return block.classList.contains('diagram-block') && block.hasAttribute('data-diagram-type');
+}
+
 function getDiagramZoomRoot(block: Element): HTMLElement | null {
   return block.querySelector<HTMLElement>('[data-diagram-zoom-root], .diagram-preview');
 }
 
-function getCodeBlockSource(block: Element): string {
+function getWysiwygCodeBlockSource(block: Element): string {
   return block.querySelector('.cm-content')?.textContent ?? '';
+}
+
+export function getSplitPaneDiagramSource(block: Element): string {
+  const shell = block.classList.contains('diagram-block')
+    ? block
+    : block.closest('.diagram-block');
+  if (!shell) return '';
+
+  const fromShell = shell.getAttribute('data-diagram-source');
+  if (fromShell) return decodeHtmlEntities(fromShell);
+
+  const plantuml = shell.querySelector('[data-plantuml-code]')?.getAttribute('data-plantuml-code');
+  if (plantuml) return decodeHtmlEntities(plantuml);
+
+  const mermaid = shell.querySelector('[data-mermaid-code]')?.getAttribute('data-mermaid-code');
+  if (mermaid) return decodeHtmlEntities(mermaid);
+
+  return '';
 }
 
 function modeLabel(mode: DiagramCopyMode): string {
@@ -133,11 +164,12 @@ function modeLabel(mode: DiagramCopyMode): string {
 /** Matches Milkdown Crepe default copy icon (14×14). */
 const COPY_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 -960 960 960" aria-hidden="true"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-320v-480 480Z"/></svg>`;
 
-function buildDiagramCopyGroup(
-  block: Element,
-  replaceBtn: HTMLElement,
-  iconHtml: string
-): HTMLElement {
+type DiagramCopyContext = {
+  getSource: () => string;
+  getImageRoot: () => HTMLElement | null;
+};
+
+function createDiagramCopyGroup(context: DiagramCopyContext, iconHtml: string): HTMLElement {
   let mode = readStoredMode();
   const icon = iconHtml.trim() || COPY_ICON_SVG;
   const group = document.createElement('div');
@@ -182,11 +214,10 @@ function buildDiagramCopyGroup(
     window.__notezDiagramCopy?.setMode(mode);
     syncUi();
     menu.hidden = true;
-    const root = getDiagramZoomRoot(block);
     if (target === 'image') {
-      await copyDiagramImage(root);
+      await copyDiagramImage(context.getImageRoot());
     } else {
-      await copyDiagramCode(getCodeBlockSource(block));
+      await copyDiagramCode(context.getSource());
     }
   };
 
@@ -206,7 +237,6 @@ function buildDiagramCopyGroup(
   document.addEventListener('click', onDocClick);
 
   syncUi();
-  replaceBtn.replaceWith(group);
   (group as HTMLElement & { __notezCopyCleanup?: () => void }).__notezCopyCleanup = () => {
     document.removeEventListener('click', onDocClick);
   };
@@ -226,7 +256,37 @@ export function ensureWysiwygDiagramCopyToolbars(root: HTMLElement): number {
     if (!group || !copyBtn) continue;
 
     const icon = copyBtn.querySelector('svg, .milkdown-icon')?.outerHTML ?? '';
-    buildDiagramCopyGroup(block, copyBtn, icon);
+    const copyGroup = createDiagramCopyGroup(
+      {
+        getSource: () => getWysiwygCodeBlockSource(block),
+        getImageRoot: () => getDiagramZoomRoot(block),
+      },
+      icon
+    );
+    copyBtn.replaceWith(copyGroup);
+    injected++;
+  }
+  return injected;
+}
+
+/** Inject copy toolbar into split-pane diagram blocks. */
+export function ensureSplitPaneDiagramCopyToolbars(root: HTMLElement): number {
+  let injected = 0;
+  for (const block of root.querySelectorAll<HTMLElement>('.diagram-block[data-diagram-type]')) {
+    if (!isSplitPaneDiagramBlock(block)) continue;
+    if (block.querySelector('.diagram-copy-group')) continue;
+
+    const toolbarGroup = block.querySelector('.diagram-tools-button-group');
+    if (!toolbarGroup) continue;
+
+    const copyGroup = createDiagramCopyGroup(
+      {
+        getSource: () => getSplitPaneDiagramSource(block),
+        getImageRoot: () => block,
+      },
+      COPY_ICON_SVG
+    );
+    toolbarGroup.prepend(copyGroup);
     injected++;
   }
   return injected;
