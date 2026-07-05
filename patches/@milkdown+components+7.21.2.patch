@@ -1,8 +1,8 @@
 diff --git a/node_modules/@milkdown/components/lib/code-block/index.js b/node_modules/@milkdown/components/lib/code-block/index.js
-index cebb80c..428490b 100644
+index 47311dc..b2d2857 100644
 --- a/node_modules/@milkdown/components/lib/code-block/index.js
 +++ b/node_modules/@milkdown/components/lib/code-block/index.js
-@@ -390,7 +390,9 @@ const PreviewPanel = defineComponent({
+@@ -421,7 +421,9 @@ const PreviewPanel = defineComponent({
          previewContainer.removeChild(previewContainer.firstChild);
        }
        const previewContent = preview.value;
@@ -10,14 +10,14 @@ index cebb80c..428490b 100644
 +      if (previewContent instanceof Element && previewContent.classList.contains("diagram-preview")) {
 +        previewContainer.appendChild(previewContent);
 +      } else if (typeof previewContent === "string" || previewContent instanceof Element) {
-         previewContainer.innerHTML = DOMPurify.sanitize(previewContent);
+         previewContainer.innerHTML = sanitizeSvg(previewContent);
        }
      });
 diff --git a/node_modules/@milkdown/components/src/code-block/view/components/preview-panel.tsx b/node_modules/@milkdown/components/src/code-block/view/components/preview-panel.tsx
-index 1b4ae47..29ec798 100644
+index e0e41a7..f68920f 100644
 --- a/node_modules/@milkdown/components/src/code-block/view/components/preview-panel.tsx
 +++ b/node_modules/@milkdown/components/src/code-block/view/components/preview-panel.tsx
-@@ -52,6 +52,11 @@ export const PreviewPanel = defineComponent<PreviewPanelProps>({
+@@ -93,6 +93,11 @@ export const PreviewPanel = defineComponent<PreviewPanelProps>({
        const previewContent = preview.value
  
        if (
