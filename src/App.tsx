@@ -24,6 +24,7 @@ import {
 } from "./utils/panelWidth";
 import "./App.css";
 import { consumePlantUmlFixPayload } from "./components/plantuml-offline/plantumlErrorUi";
+import { resolveWorkspaceDirFromFilePath } from "./utils/workspacePath";
 
 function App() {
   const {
@@ -136,7 +137,16 @@ function App() {
 
     const openFromPath = async (filePath: string) => {
       const noteFile = await openMarkdownFileFromPath(filePath);
-      if (!cancelled && noteFile) loadFile(noteFile);
+      if (cancelled || !noteFile) return;
+
+      try {
+        const dir = await resolveWorkspaceDirFromFilePath(filePath);
+        if (dir) useAppStore.getState().addEphemeralWorkspaceDir(dir);
+      } catch (e) {
+        console.warn('ephemeral workspace:', e);
+      }
+
+      loadFile(noteFile);
     };
 
     const runCliOpen = async () => {
