@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { EditorView, basicSetup } from 'codemirror';
+import { describe, it, expect } from 'vitest';
+import { EditorView } from 'codemirror';
 import { EditorState } from '@codemirror/state';
 import {
   wrapSelection,

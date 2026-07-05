@@ -1,7 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import {
   isSameNormalizedPath,
-  resolveWorkspaceDirFromFilePath,
   workspacePathKey,
 } from '../workspacePath';
 

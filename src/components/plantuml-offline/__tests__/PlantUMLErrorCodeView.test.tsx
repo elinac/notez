@@ -34,7 +34,7 @@ describe('PlantUMLErrorCodeView', () => {
 
     vi.mocked(useAppStore.getState).mockReturnValue({
       requestPlantUmlAiFix: vi.fn(),
-    } as ReturnType<typeof useAppStore.getState>);
+    } as unknown as ReturnType<typeof useAppStore.getState>);
   });
 
   it('renders full source with line numbers and highlights error line', () => {
@@ -70,7 +70,7 @@ describe('PlantUMLErrorCodeView', () => {
     const requestPlantUmlAiFix = vi.fn();
     vi.mocked(useAppStore.getState).mockReturnValue({
       requestPlantUmlAiFix,
-    } as ReturnType<typeof useAppStore.getState>);
+    } as unknown as ReturnType<typeof useAppStore.getState>);
 
     render(
       <PlantUMLErrorCodeView

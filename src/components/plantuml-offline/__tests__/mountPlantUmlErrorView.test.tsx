@@ -26,7 +26,7 @@ describe('mountPlantUmlErrorView', () => {
 
     vi.mocked(useAppStore.getState).mockReturnValue({
       requestPlantUmlAiFix: vi.fn(),
-    } as ReturnType<typeof useAppStore.getState>);
+    } as unknown as ReturnType<typeof useAppStore.getState>);
   });
 
   it('createPlantUmlErrorHost renders PlantUMLErrorCodeView', () => {
