@@ -1,4 +1,4 @@
-export type SettingsCategory = 'appearance' | 'ai' | 'plantuml';
+export type SettingsCategory = 'appearance' | 'ai' | 'plantuml' | 'about';
 
 export interface FontConfig {
   fontFamily: string;

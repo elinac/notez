@@ -1,10 +1,11 @@
-import { Monitor, Sparkles, FileCode } from 'lucide-react';
+import { Monitor, Sparkles, FileCode, Info } from 'lucide-react';
 import type { SettingsCategory } from './settingsTypes';
 
 const CATEGORIES: { id: SettingsCategory; label: string; icon: React.ReactNode }[] = [
   { id: 'appearance', label: '外观', icon: <Monitor size={16} /> },
   { id: 'ai', label: 'AI 服务', icon: <Sparkles size={16} /> },
   { id: 'plantuml', label: 'PlantUML', icon: <FileCode size={16} /> },
+  { id: 'about', label: '关于', icon: <Info size={16} /> },
 ];
 
 interface Props {
