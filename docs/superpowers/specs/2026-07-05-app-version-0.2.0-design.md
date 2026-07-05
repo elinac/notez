@@ -1,7 +1,7 @@
 # NoteZ 0.2.0 版本发布 — 版本统一、关于页与 CHANGELOG
 
 > **日期**: 2026-07-05  
-> **状态**: 待实现（已审计修订）  
+> **状态**: 已实现  
 > **Brainstorming 结论**: 用户确认方案 1（`package.json` 单一来源）+ Tauri `getVersion()` 运行时读取 + 设置页「关于」分类 + git log 自动生成 CHANGELOG + `v0.2.0` tag
 
 ---
