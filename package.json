@@ -8,9 +8,12 @@
     "postinstall": "patch-package",
     "dev": "vite",
     "build": "tsc && vite build",
+    "prebuild": "npm run version:sync",
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "vitest",
+    "version:sync": "node scripts/sync-version.mjs",
+    "changelog": "node scripts/generate-changelog.mjs",
     "icons:svg": "node scripts/generate-icon-svg.mjs",
     "icons": "node scripts/generate-icon-svg.mjs && npx tauri icon src-tauri/icons/icon-master.png && node scripts/prune-non-windows-icons.mjs"
   },
