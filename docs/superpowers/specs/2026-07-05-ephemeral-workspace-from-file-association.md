@@ -1,8 +1,9 @@
 # 文件关联打开 — 会话级临时工作区
 
 > **日期**: 2026-07-05  
-> **状态**: 已批准，待实现  
-> **类型**: 功能设计 spec
+> **状态**: 已批准（含审核修订），待实现  
+> **类型**: 功能设计 spec  
+> **修订**: 2026-07-05 — 路径 API 分层、打开成功后再加临时根、已知限制与 active 高亮
 
 ---
 
@@ -40,6 +41,12 @@ NoteZ 支持通过 OS 文件关联（`.md` / `.markdown`）、CLI `path` 参数�
 - 应用内「打开文件」对话框、最近文件列表 → **不**触发临时工作区
 - Rust 端（`lib.rs`）、`tauri.conf.json` → **无需修改**
 - 将临时工作区「升级」为持久化 → 用户需显式「添加工作区目录」
+- **Refactor 持久化 `addWorkspaceDir` / `removeWorkspaceDir` 的去重逻辑** → 本 spec 不改动；仅 ephemeral 侧使用 tolerant compare
+
+### 2.2 已知限制（Known limitations）
+
+1. **子目录与持久化根重叠**：若持久化根为 `D:\Projects`，关联打开 `D:\Projects\sub\readme.md` 时，仍会新增临时根 `D:\Projects\sub`（与 brainstorming 决策「仅 exact match 跳过」一致）。不做「目录被持久化根包含」检测；若需避免冗余根，可在后续版本增加 `isPathUnderWorkspaceRoot()`。
+2. **重启后会话丢失**：`tabs` 会 persist（含关联打开的文件 path），`ephemeralWorkspaceDirs` 不会。重启后用户可能仍有编辑 tab，但文件树无对应临时根——这是 session-only 的预期行为，非 bug。
 
 ---
 
@@ -75,37 +82,48 @@ addEphemeralWorkspaceDir(dir: string): void;
 removeEphemeralWorkspaceDir(dir: string): void;
 ```
 
-**`addEphemeralWorkspaceDir` 逻辑**：
+**`addEphemeralWorkspaceDir` 逻辑**（**同步**；入参必须是已通过 Tauri `normalize` 的 canonical 路径）：
 
-1. 规范化 `dir`（见 §4.3）
-2. 若与任一 `workspaceDirs` 条目等价 → **no-op**
-3. 若已在 `ephemeralWorkspaceDirs` → **no-op**
-4. 否则 append 到 `ephemeralWorkspaceDirs`，并 `fileTreeVersion++`
+1. 用 `workspacePathKey(dir)` 与任一 `workspaceDirs` 条目比较 → 等价则 **no-op**
+2. 用 `workspacePathKey(dir)` 与任一 `ephemeralWorkspaceDirs` 比较 → 等价则 **no-op**
+3. 否则 append **原始 canonical 字符串** `dir` 到 `ephemeralWorkspaceDirs`，并 `fileTreeVersion++`
+
+> **`fileTreeVersion` 仅在 ephemeral 添加时 bump**：持久化 `addWorkspaceDir` 当前不 bump；临时根首次出现时需触发文件树挂载，故此处递增。
 
 **`removeEphemeralWorkspaceDir` 逻辑**：
 
-- 从 `ephemeralWorkspaceDirs` 移除匹配项（按等价比较）
+- 从 `ephemeralWorkspaceDirs` 移除与 `dir` 等价（`workspacePathKey`）的条目
 - 不修改 `workspaceDirs`
 - 已打开编辑器标签页 **保留**（与移除持久化工作区行为一致）
 
-### 4.3 路径规范化
+### 4.3 路径工具（两层 API）
 
-新建 `src/utils/workspacePath.ts`（或等价模块）：
+新建 `src/utils/workspacePath.ts`。Tauri 官方 `@tauri-apps/api/path` 中 `dirname` / `normalize` 均为 **异步** `Promise<string>`（`invoke('plugin:path|…')`）；工程已在 `capabilities/default.json` 声明 `core:path:default`。
+
+**禁止**在同步 store action 内调用 Tauri path API。
 
 ```typescript
-/** 用于工作区去重比较的路径规范化 */
-export function normalizeWorkspacePath(path: string): string;
+/**
+ * 同步：仅用于等价比较（去重、active 高亮）。
+ * 规则：统一 `/`、Windows 小写、去末尾 `/`（盘符根除外）。
+ */
+export function workspacePathKey(path: string): string;
 
 /** 两条路径是否指向同一工作区目录 */
 export function isSameWorkspacePath(a: string, b: string): boolean;
+
+/**
+ * 异步：从关联文件路径解析 canonical 工作区根。
+ * 1. dirname(filePath)
+ * 2. normalize(dir)  — 必须调用，统一 Windows `\\?\` 等格式
+ * 失败时返回 null（caller 打 console.warn，不阻断 loadFile）。
+ */
+export async function resolveWorkspaceDirFromFilePath(
+  filePath: string
+): Promise<string | null>;
 ```
 
-规则：
-
-- 统一分隔符为 `/`
-- Windows 下比较前转小写
-- 去除末尾 `/`（根目录除外）
-- 优先使用 Tauri `@tauri-apps/api/path` 的 `normalize`（若可用）；失败时回退到手写规则
+**与持久化 `workspaceDirs` 的去重**：ephemeral 侧用 `workspacePathKey` tolerant compare；持久化侧仍用现有 `includes(dir)`，本 spec 不 refactor。
 
 ### 4.4 持久化隔离
 
@@ -123,25 +141,52 @@ export function isSameWorkspacePath(a: string, b: string): boolean;
 OS 双击 .md
   → CLI path 参数 或 single_instance 发出 open-markdown-path
   → App.tsx openFromPath(filePath)
-      → dirname(filePath) → normalizeWorkspacePath
-      → addEphemeralWorkspaceDir(parentDir)   // 内部去重
-      → openMarkdownFileFromPath(filePath)
+      → noteFile = await openMarkdownFileFromPath(filePath)
+      → 若 noteFile 为 null → 结束（不加临时根）
+      → dir = await resolveWorkspaceDirFromFilePath(filePath)
+      → 若 dir 非 null → useAppStore.getState().addEphemeralWorkspaceDir(dir)
       → loadFile(noteFile)
   → FileExplorer 合并渲染 workspaceDirs + ephemeralWorkspaceDirs
 ```
 
+**实现约定**：
+
+- 关联打开逻辑通过 `useAppStore.getState()` 取 action，避免 `useEffect` 依赖膨胀
+- **必须先打开文件成功，再添加临时根**（避免读盘失败时出现空临时根）
+
 触发点 **仅限** `App.tsx` 中处理关联/CLI/二次实例的 `openFromPath` 路径。
+
+**参考实现（伪代码）**：
+
+```typescript
+const openFromPath = async (filePath: string) => {
+  const noteFile = await openMarkdownFileFromPath(filePath);
+  if (cancelled || !noteFile) return;
+
+  try {
+    const dir = await resolveWorkspaceDirFromFilePath(filePath);
+    if (dir) useAppStore.getState().addEphemeralWorkspaceDir(dir);
+  } catch (e) {
+    console.warn('ephemeral workspace:', e);
+  }
+
+  loadFile(noteFile);
+};
+```
 
 ### 5.2 边界情况
 
 | 场景 | 行为 |
 |------|------|
 | 非 `.md` / `.markdown` | 现有过滤逻辑，不触发临时工作区 |
+| `openMarkdownFileFromPath` 失败 | 不加临时根；不 `loadFile` |
 | 同一目录多次关联打开 | 临时列表中只保留一条 |
 | 二次实例打开不同目录文件 | 各目录各加一条临时根 |
 | 非 Tauri（浏览器） | 不触发；列表始终为空 |
-| `dirname` 失败 | 仅 `loadFile`；`console.warn`；不添加临时根 |
-| 目录读取失败 | 文件树已有错误展示；不影响编辑器 |
+| `resolveWorkspaceDirFromFilePath` 失败 | 仍 `loadFile`；`console.warn`；不添加临时根 |
+| 目录读取失败（文件树） | 文件树已有错误展示；不影响编辑器 |
+| 应用重启 | 临时根清空；persist 的 tabs 可能仍在，文件树无临时根（见 §2.2） |
+| 持久化根包含文件所在子目录 | 仍可能新增子目录临时根（见 §2.2） |
 
 ---
 
@@ -159,22 +204,26 @@ OS 双击 .md
 | 元素 | 持久化工作区 | 临时工作区 |
 |------|-------------|-----------|
 | 目录名旁 | 无额外标签 | 灰色小字「临时」 |
-| 文件夹图标 | `FolderOpen` 黄色 | `FolderOpen` 蓝色或灰色 |
+| 文件夹图标 | `FolderOpen` 黄色 | `FolderOpen` 灰色（`text-gray-500`） |
 | 移除按钮 tooltip | 「移除此工作区」 | 「移除此临时工作区」 |
 | 移除 action | `removeWorkspaceDir` | `removeEphemeralWorkspaceDir` |
 
 面板标题保持「工作区」，不改为「临时工作区」。
 
-### 6.2 空状态逻辑
+### 6.2 当前文件高亮（active）
+
+`TreeItem` 中 `activePath === node.path` 改为使用 `isSameWorkspacePath(activePath, node.path)`（或 `workspacePathKey` 相等），避免关联路径与 `readDir` + `join` 产物格式不一致导致树中不高亮。
+
+### 6.3 空状态逻辑
 
 ```
 if (!_hasHydrated)           → 「正在恢复工作区…」
 else if (workspaceDirs.length === 0 && ephemeralWorkspaceDirs.length === 0)
                               → 「未添加工作区」+ 添加按钮
-else                          → 渲染合并后的工作区列表
+else                          → 渲染合并后的工作区列表（含面板工具栏「添加工作区」）
 ```
 
-### 6.3 「添加工作区目录」
+### 6.4 「添加工作区目录」
 
 行为不变：调用 `addWorkspaceDir`，写入持久化。临时根不会被自动升级。
 
@@ -185,11 +234,11 @@ else                          → 渲染合并后的工作区列表
 | 文件 | 改动 |
 |------|------|
 | `src/store/useAppStore.ts` | 新增 `ephemeralWorkspaceDirs` + actions；确认不 persist |
-| `src/App.tsx` | `openFromPath` 中调用 `addEphemeralWorkspaceDir` |
-| `src/components/FileExplorer.tsx` | 合并渲染、视觉区分、移除分支 |
-| `src/utils/workspacePath.ts` | 路径规范化与等价比较（新建） |
-| `src/utils/__tests__/workspacePath.test.ts` | 路径工具单测（新建） |
-| `src/store/__tests__/ephemeralWorkspace.test.ts` | Store 行为单测（新建，或并入现有 store 测试） |
+| `src/App.tsx` | `openFromPath`：成功打开后 `resolveWorkspaceDirFromFilePath` + `getState().addEphemeralWorkspaceDir` |
+| `src/components/FileExplorer.tsx` | 合并渲染、视觉区分、移除分支、active 高亮、空状态条件 |
+| `src/utils/workspacePath.ts` | `workspacePathKey` + `resolveWorkspaceDirFromFilePath`（新建） |
+| `src/utils/__tests__/workspacePath.test.ts` | 路径 key 单测；`resolveWorkspaceDirFromFilePath` 可 mock Tauri path |
+| `src/store/__tests__/ephemeralWorkspace.test.ts` | Store 行为单测（新建） |
 
 ---
 
@@ -199,14 +248,15 @@ else                          → 渲染合并后的工作区列表
 
 **`workspacePath`**：
 
-- Windows 大小写不敏感等价
-- `\` 与 `/` 等价
-- 末尾斜杠处理
+- `workspacePathKey`：Windows 大小写不敏感；`\` 与 `/` 等价；末尾斜杠
+- `isSameWorkspacePath`：与 key 一致
+- `resolveWorkspaceDirFromFilePath`：mock `dirname` + `normalize` 返回 canonical 路径；失败返回 null
 
 **Store actions**：
 
-- `addEphemeralWorkspaceDir`：新目录加入；重复 no-op；已在 `workspaceDirs` 中 skip
+- `addEphemeralWorkspaceDir`：新目录加入；重复 no-op；`workspacePathKey` 与 `workspaceDirs` 等价时 skip
 - `removeEphemeralWorkspaceDir`：移除成功；不影响 `workspaceDirs`
+- `addEphemeralWorkspaceDir` 成功时 `fileTreeVersion` 递增
 - `partialize` 输出不含 `ephemeralWorkspaceDirs`
 
 ### 8.2 组件测试（可选，轻量）
@@ -217,19 +267,23 @@ else                          → 渲染合并后的工作区列表
 ### 8.3 手动验证清单
 
 1. 无持久化工作区 → 双击 `.md` → 文件树显示带「临时」标签的父目录
-2. 重启应用 → 临时根消失，持久化配置不变
-3. 父目录已在持久化工作区 → 不出现重复临时根
+2. 重启应用 → 临时根消失，持久化配置不变；若 tab 仍在则文件树可能无临时根（预期）
+3. 父目录已在持久化工作区（同 key）→ 不出现重复临时根
 4. 运行中二次实例打开另一目录文件 → 两个临时根并存
 5. 移除临时根 → 编辑器标签仍在，文件树该项消失
+6. 关联打开不存在/无权限文件 → 无临时根、无新 tab
+7. 关联打开后树中当前文件有高亮
 
 ---
 
 ## 9. 验收标准
 
-- [ ] 通过 OS 关联打开 `.md` 时，文件树展示该文件父目录（除非已在持久化工作区中）
+- [ ] 通过 OS 关联打开 `.md` 且读盘成功时，文件树展示该文件父目录（除非 `workspacePathKey` 与某持久化根等价）
+- [ ] 读盘失败时不出现临时根
 - [ ] `workspaceDirs` 的 localStorage 内容在关联打开前后 **不变**
 - [ ] 关闭并重启应用后，临时工作区 **全部消失**
 - [ ] 多个不同目录的关联打开产生多个临时根
 - [ ] 临时根有视觉区分，可手动移除
 - [ ] 应用内「打开文件」对话框 **不**产生临时工作区
+- [ ] 文件树 active 高亮在路径格式差异下仍正确
 - [ ] 相关单元测试通过
