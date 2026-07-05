@@ -16,6 +16,7 @@ import {
   DEFAULT_FILE_PANEL_WIDTH_PX,
 } from '../utils/panelWidth';
 import { clampSplitRatio, removeTabSplitRatio } from '../utils/splitPaneRatio';
+import { workspacePathKey } from '../utils/workspacePath';
 
 // ── View types ────────────────────────────────────────────────────────────────
 export type AppView = 'editor' | 'board';
@@ -84,6 +85,8 @@ interface AppState {
   aiPanelWidth: number;
   /** Ordered list of workspace root directories */
   workspaceDirs: string[];
+  /** Session-scoped temporary workspace roots (not persisted) */
+  ephemeralWorkspaceDirs: string[];
   /** Increment to signal FileExplorer to refresh the tree */
   fileTreeVersion: number;
   /** True once Zustand persist has rehydrated state from localStorage */
@@ -141,6 +144,10 @@ interface AppState {
   addWorkspaceDir: (dir: string) => void;
   /** Remove a workspace root by path */
   removeWorkspaceDir: (dir: string) => void;
+  /** Add a session-scoped temporary workspace root */
+  addEphemeralWorkspaceDir: (dir: string) => void;
+  /** Remove a temporary workspace root by path */
+  removeEphemeralWorkspaceDir: (dir: string) => void;
   /** Trigger a file tree refresh */
   refreshFileTree: () => void;
   setHasHydrated: (v: boolean) => void;
@@ -201,6 +208,7 @@ export const useAppStore = create<AppState>()(
         showFormattingToolbar: true,
         sidebarPanel: 'files',
         workspaceDirs: [],
+        ephemeralWorkspaceDirs: [],
         rightPanel: null,
         filePanelWidth: DEFAULT_FILE_PANEL_WIDTH_PX,
         aiPanelWidth: DEFAULT_AI_PANEL_WIDTH_PX,
@@ -362,6 +370,22 @@ export const useAppStore = create<AppState>()(
           })),
         removeWorkspaceDir: (dir) =>
           set((s) => ({ workspaceDirs: s.workspaceDirs.filter((d) => d !== dir) })),
+        addEphemeralWorkspaceDir: (dir) =>
+          set((s) => {
+            const key = workspacePathKey(dir);
+            if (s.workspaceDirs.some((d) => workspacePathKey(d) === key)) return s;
+            if (s.ephemeralWorkspaceDirs.some((d) => workspacePathKey(d) === key)) return s;
+            return {
+              ephemeralWorkspaceDirs: [...s.ephemeralWorkspaceDirs, dir],
+              fileTreeVersion: s.fileTreeVersion + 1,
+            };
+          }),
+        removeEphemeralWorkspaceDir: (dir) =>
+          set((s) => ({
+            ephemeralWorkspaceDirs: s.ephemeralWorkspaceDirs.filter(
+              (d) => workspacePathKey(d) !== workspacePathKey(dir)
+            ),
+          })),
         refreshFileTree: () => set((s) => ({ fileTreeVersion: s.fileTreeVersion + 1 })),
         setHasHydrated: (v) => set({ _hasHydrated: v }),
 
