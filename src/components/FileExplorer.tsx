@@ -22,6 +22,7 @@ import {
 import { useAppStore } from '../store/useAppStore';
 import { NoteFile, isTauri, createNewFile } from './FileOperations';
 import { confirmAction, promptNewFilePath } from '../utils/nativeDialog';
+import { isSameNormalizedPath } from '../utils/workspacePath';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -132,7 +133,8 @@ function TreeItem({
     );
   }
 
-  const isActive = activePath === node.path;
+  const isActive =
+    activePath != null && isSameNormalizedPath(activePath, node.path);
   return (
     <button
       onClick={() => onFileClick(node)}
@@ -156,6 +158,7 @@ function TreeItem({
  */
 function WorkspaceSection({
   dir,
+  ephemeral = false,
   fileTreeVersion,
   activePath,
   onFileClick,
@@ -164,6 +167,7 @@ function WorkspaceSection({
   onNewFile,
 }: {
   dir: string;
+  ephemeral?: boolean;
   fileTreeVersion: number;
   activePath: string | undefined;
   onFileClick: (node: FileNode) => void;
@@ -209,8 +213,16 @@ function WorkspaceSection({
           ) : (
             <ChevronRight size={11} className="flex-shrink-0 text-gray-400" />
           )}
-          <FolderOpen size={12} className="flex-shrink-0 text-yellow-500" />
-          <span className="text-xs font-semibold text-gray-700 truncate ml-0.5">{dirName}</span>
+          <FolderOpen
+            size={12}
+            className={`flex-shrink-0 ${ephemeral ? 'text-gray-500' : 'text-yellow-500'}`}
+          />
+          <span className="text-xs font-semibold text-gray-700 truncate ml-0.5">
+            {dirName}
+            {ephemeral && (
+              <span className="ml-1 text-[10px] font-normal text-gray-400">临时</span>
+            )}
+          </span>
         </button>
         <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
@@ -229,7 +241,7 @@ function WorkspaceSection({
           </button>
           <button
             onClick={() => onRemove(dir)}
-            title="移除此工作区"
+            title={ephemeral ? '移除此临时工作区' : '移除此工作区'}
             className="p-0.5 text-gray-400 hover:text-red-500 transition-colors"
           >
             <X size={11} />
@@ -267,8 +279,10 @@ function WorkspaceSection({
 export function FileExplorer() {
   const {
     workspaceDirs,
+    ephemeralWorkspaceDirs,
     addWorkspaceDir,
     removeWorkspaceDir,
+    removeEphemeralWorkspaceDir,
     loadFile,
     currentFile,
     refreshFileTree,
@@ -406,6 +420,10 @@ export function FileExplorer() {
     }
   };
 
+  const visibleEphemeralDirs = ephemeralWorkspaceDirs.filter(
+    (e) => !workspaceDirs.some((w) => isSameNormalizedPath(w, e))
+  );
+
   // ── Non-Tauri fallback ────────────────────────────────────────────────────
   if (!isTauri()) {
     return (
@@ -426,7 +444,7 @@ export function FileExplorer() {
   }
 
   // ── No workspaces yet ────────────────────────────────────────────────────
-  if (workspaceDirs.length === 0) {
+  if (workspaceDirs.length === 0 && visibleEphemeralDirs.length === 0) {
     return (
       <div className="flex flex-col h-full items-center justify-center text-center p-4 gap-3">
         <FolderOpen size={32} className="text-gray-300" />
@@ -477,6 +495,19 @@ export function FileExplorer() {
             onFileClick={handleFileClick}
             onContextMenu={handleContextMenu}
             onRemove={removeWorkspaceDir}
+            onNewFile={handleNewFileInWorkspace}
+          />
+        ))}
+        {visibleEphemeralDirs.map((dir) => (
+          <WorkspaceSection
+            key={`ephemeral:${dir}`}
+            dir={dir}
+            ephemeral
+            fileTreeVersion={fileTreeVersion}
+            activePath={currentFile.path}
+            onFileClick={handleFileClick}
+            onContextMenu={handleContextMenu}
+            onRemove={removeEphemeralWorkspaceDir}
             onNewFile={handleNewFileInWorkspace}
           />
         ))}
