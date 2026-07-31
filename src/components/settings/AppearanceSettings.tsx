@@ -55,6 +55,29 @@ export function AppearanceSettings() {
       <p className="text-[10px] text-gray-400 -mt-2 mb-4 leading-snug">
         文档主题主要作用于全屏（WYSIWYG）模式；源码模式按外观模式切换浅色/深色。
       </p>
+      <div className="mb-4">
+        <label className="block text-xs text-gray-500 mb-1.5">全屏内容宽度</label>
+        <div className="flex items-center gap-3 max-w-xs">
+          <input
+            type="range"
+            min={WYSIWYG_CONTENT_WIDTH_MIN}
+            max={WYSIWYG_CONTENT_WIDTH_MAX}
+            step={1}
+            value={wysiwygContentWidthPercent}
+            onInput={(e) =>
+              setWysiwygContentWidthPercent(Number((e.target as HTMLInputElement).value))
+            }
+            onChange={() => persistWysiwygContentWidthPercent()}
+            className="flex-1 accent-gray-600"
+          />
+          <span className="text-xs text-gray-600 w-10 tabular-nums text-right">
+            {wysiwygContentWidthPercent}%
+          </span>
+        </div>
+        <p className="text-[10px] text-gray-400 mt-1.5 leading-snug">
+          仅作用于全屏（WYSIWYG）模式；源码/分屏不受影响。百分比相对编辑区宽度；小于 100% 时两侧留白由本设置控制。
+        </p>
+      </div>
       <SettingsSelect label="代码块语法高亮" value={codeBlockThemeId}
         options={CODE_BLOCK_THEME_OPTIONS} onChange={setCodeBlockThemeId} />
       <p className="text-[10px] text-gray-400 -mt-2 mb-4 leading-snug">
