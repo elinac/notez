@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   beginAutoSaveWrite,
   cancelPendingAutoSave,
+  clearAutoSaveTimerOnly,
   isAutoSaveWriteCurrent,
   scheduleAutoSave,
 } from '../autoSaveController';
@@ -39,5 +40,15 @@ describe('autoSaveController', () => {
     vi.advanceTimersByTime(1000);
     expect(a).not.toHaveBeenCalled();
     expect(b).toHaveBeenCalledOnce();
+  });
+
+  it('clearAutoSaveTimerOnly 只清 timer 不 bump generation', () => {
+    const fn = vi.fn();
+    scheduleAutoSave(fn, 1000);
+    const gen = beginAutoSaveWrite();
+    clearAutoSaveTimerOnly();
+    vi.advanceTimersByTime(1000);
+    expect(fn).not.toHaveBeenCalled();
+    expect(isAutoSaveWriteCurrent(gen)).toBe(true);
   });
 });

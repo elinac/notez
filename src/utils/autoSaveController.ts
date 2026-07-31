@@ -27,3 +27,10 @@ export function beginAutoSaveWrite(): number {
 export function isAutoSaveWriteCurrent(gen: number): boolean {
   return gen === writeGeneration;
 }
+
+export function clearAutoSaveTimerOnly(): void {
+  if (timer !== null) {
+    clearTimeout(timer);
+    timer = null;
+  }
+}

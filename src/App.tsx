@@ -7,8 +7,16 @@ import { AiPanel } from "./components/AiPanel";
 import { TabBar } from "./components/TabBar";
 import { SettingsDialog } from './components/settings/SettingsDialog';
 import { PanelResizeHandle } from "./components/PanelResizeHandle";
+import { SavePromptHost } from './components/SavePromptHost';
 import { useAppStore, isFileTab } from "./store/useAppStore";
 import { useSettingsStore } from "./store/useSettingsStore";
+import { hasPersistablePath } from "./utils/persistablePath";
+import {
+  scheduleAutoSave,
+  beginAutoSaveWrite,
+  isAutoSaveWriteCurrent,
+  clearAutoSaveTimerOnly,
+} from "./utils/autoSaveController";
 import {
   saveMarkdownFileTauri,
   isTauri,
@@ -191,8 +199,9 @@ function App() {
     };
   }, [loadFile]);
 
+  const autoSaveEnabled = useSettingsStore((s) => s.autoSaveEnabled);
+
   // ── Auto-save: debounce 1s after active tab content changes ───────────────
-  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeTabIdRef = useRef(activeTabId);
   const contentRef = useRef(content);
   const fileRef = useRef(currentFile);
@@ -203,38 +212,37 @@ function App() {
   useEffect(() => {
     const activeTab = tabs.find((t) => t.id === activeTabId);
     if (!activeTab || !isFileTab(activeTab)) return;
+    if (!isTauri()) return;
+    if (!autoSaveEnabled) return;
     if (!currentFile.isDirty) return;
+    if (!hasPersistablePath(currentFile)) return;
 
-    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current = setTimeout(async () => {
+    scheduleAutoSave(async () => {
+      const gen = beginAutoSaveWrite();
       const file = fileRef.current;
       const tabId = activeTabIdRef.current;
       const c = contentRef.current;
-      if (!file.isDirty) return;
+      if (!file.isDirty || !hasPersistablePath(file)) return;
       const st = useAppStore.getState();
       const tNow = st.tabs.find((x) => x.id === tabId);
       if (!tNow || !isFileTab(tNow)) return;
-
-      if (isTauri()) {
-        try {
-          const savedPath = await saveMarkdownFileTauri(file, c);
-          if (savedPath) {
-            updateTabFile(tabId, { ...file, isDirty: false, path: savedPath });
-            refreshFileTree();
-          }
-        } catch (err) {
-          console.error('Auto-save failed:', err);
+      try {
+        const savedPath = await saveMarkdownFileTauri(file, c);
+        if (!isAutoSaveWriteCurrent(gen)) return;
+        if (!useAppStore.getState().tabs.some((t) => t.id === tabId)) return;
+        if (savedPath) {
+          updateTabFile(tabId, { ...file, content: c, isDirty: false, path: savedPath });
+          refreshFileTree();
         }
-      } else {
-        // Browser: just mark clean (no silent download)
-        updateTabFile(tabId, { ...file, isDirty: false });
+      } catch (err) {
+        console.error('Auto-save failed:', err);
       }
     }, 1000);
 
     return () => {
-      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+      clearAutoSaveTimerOnly();
     };
-  }, [content, currentFile.isDirty, activeTabId, tabs]);
+  }, [content, currentFile.isDirty, currentFile.path, currentFile.title, activeTabId, tabs, autoSaveEnabled, updateTabFile]);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
@@ -272,7 +280,7 @@ function App() {
         const { activeTabId: aid, tabs: tabList } = useAppStore.getState();
         const curTab = tabList.find((t) => t.id === aid);
         if (!curTab || !isFileTab(curTab)) return;
-        if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+        clearAutoSaveTimerOnly();
         const file = fileRef.current;
         const tabId = activeTabIdRef.current;
         const c = contentRef.current;
@@ -322,6 +330,7 @@ function App() {
       />
 
       <SettingsDialog open={settingsDialogOpen} onClose={closeSettingsDialog} />
+      <SavePromptHost />
 
       {/* ── Body: Sidebar + Left Panel + Main + Right Panel ── */}
       <div className="flex flex-1 overflow-hidden">
