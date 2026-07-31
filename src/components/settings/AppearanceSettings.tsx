@@ -6,6 +6,10 @@ import { CODE_BLOCK_THEME_OPTIONS } from '../../constants/codeBlockThemes';
 import { FontPicker } from './FontPicker';
 import { FontSizeStepper } from './FontSizeStepper';
 import { RECOMMENDED_FONTS } from '../../constants/fontDefaults';
+import {
+  WYSIWYG_CONTENT_WIDTH_MIN,
+  WYSIWYG_CONTENT_WIDTH_MAX,
+} from '../../constants/wysiwygContentWidth';
 
 function SettingsSelect<T extends string>({
   label, value, options, onChange,
@@ -36,6 +40,7 @@ export function AppearanceSettings() {
     uiFontConfig, setUiFontConfig,
     editorFontConfig, setEditorFontConfig,
     codeBlockFontConfig, setCodeBlockFontConfig,
+    wysiwygContentWidthPercent, setWysiwygContentWidthPercent, persistWysiwygContentWidthPercent,
     systemFonts, loadSystemFonts,
   } = useSettingsStore();
 
