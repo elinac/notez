@@ -17,6 +17,7 @@ import {
 } from '../utils/panelWidth';
 import { clampSplitRatio, removeTabSplitRatio } from '../utils/splitPaneRatio';
 import { workspacePathKey } from '../utils/workspacePath';
+import { getCloseTargetIds } from '../utils/tabCloseTargets';
 
 // ── View types ────────────────────────────────────────────────────────────────
 export type AppView = 'editor' | 'board';
@@ -113,6 +114,10 @@ interface AppState {
   // Tab actions
   openTab: (file: NoteFile) => void;
   closeTab: (tabId: string) => void;
+  closeOtherTabs: (tabId: string) => void;
+  closeTabsToLeft: (tabId: string) => void;
+  closeTabsToRight: (tabId: string) => void;
+  closeAllTabs: () => void;
   switchTab: (tabId: string) => void;
   updateTabContent: (tabId: string, content: string) => void;
   updateTabFile: (tabId: string, file: NoteFile) => void;
@@ -280,6 +285,85 @@ export const useAppStore = create<AppState>()(
               activeTabId: newActiveTabId,
               splitPaneRatioByTabId,
               ...extra,
+            };
+          }),
+
+        closeOtherTabs: (tabId) =>
+          set((state) => {
+            const targetIds = getCloseTargetIds(state.tabs, 'others', tabId);
+            if (targetIds.length === 0) return {};
+            if (!state.tabs.some((t) => t.id === tabId)) return {};
+            const remove = new Set(targetIds);
+            const newTabs = state.tabs.filter((t) => !remove.has(t.id));
+            let splitPaneRatioByTabId = state.splitPaneRatioByTabId;
+            for (const id of targetIds) {
+              splitPaneRatioByTabId = removeTabSplitRatio(splitPaneRatioByTabId, id);
+            }
+            return {
+              tabs: newTabs,
+              activeTabId: tabId,
+              splitPaneRatioByTabId,
+              ...syncActive(newTabs, tabId, initialFile),
+            };
+          }),
+
+        closeTabsToLeft: (tabId) =>
+          set((state) => {
+            const targetIds = getCloseTargetIds(state.tabs, 'left', tabId);
+            if (targetIds.length === 0) return {};
+            if (!state.tabs.some((t) => t.id === tabId)) return {};
+            const remove = new Set(targetIds);
+            const newTabs = state.tabs.filter((t) => !remove.has(t.id));
+            let newActiveTabId = state.activeTabId;
+            if (remove.has(state.activeTabId)) newActiveTabId = tabId;
+            let splitPaneRatioByTabId = state.splitPaneRatioByTabId;
+            for (const id of targetIds) {
+              splitPaneRatioByTabId = removeTabSplitRatio(splitPaneRatioByTabId, id);
+            }
+            return {
+              tabs: newTabs,
+              activeTabId: newActiveTabId,
+              splitPaneRatioByTabId,
+              ...syncActive(newTabs, newActiveTabId, initialFile),
+            };
+          }),
+
+        closeTabsToRight: (tabId) =>
+          set((state) => {
+            const targetIds = getCloseTargetIds(state.tabs, 'right', tabId);
+            if (targetIds.length === 0) return {};
+            if (!state.tabs.some((t) => t.id === tabId)) return {};
+            const remove = new Set(targetIds);
+            const newTabs = state.tabs.filter((t) => !remove.has(t.id));
+            let newActiveTabId = state.activeTabId;
+            if (remove.has(state.activeTabId)) newActiveTabId = tabId;
+            let splitPaneRatioByTabId = state.splitPaneRatioByTabId;
+            for (const id of targetIds) {
+              splitPaneRatioByTabId = removeTabSplitRatio(splitPaneRatioByTabId, id);
+            }
+            return {
+              tabs: newTabs,
+              activeTabId: newActiveTabId,
+              splitPaneRatioByTabId,
+              ...syncActive(newTabs, newActiveTabId, initialFile),
+            };
+          }),
+
+        closeAllTabs: () =>
+          set(() => {
+            const file = createNewFile();
+            const newTab: FileEditorTab = {
+              kind: 'file',
+              id: file.path ?? `tab-${Date.now()}`,
+              file,
+              content: file.content,
+            };
+            const newTabs = [newTab];
+            return {
+              tabs: newTabs,
+              activeTabId: newTab.id,
+              splitPaneRatioByTabId: {},
+              ...syncActive(newTabs, newTab.id, initialFile),
             };
           }),
 
