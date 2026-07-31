@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { X } from 'lucide-react';
 import { SettingsSidebar } from './SettingsSidebar';
 import { AppearanceSettings } from './AppearanceSettings';
+import { EditorSettings } from './EditorSettings';
 import { AiSettings } from './AiSettings';
 import { PlantUmlSettings } from './PlantUmlSettings';
 import { AboutSettings } from './AboutSettings';
@@ -75,6 +76,7 @@ export function SettingsDialog({ open, onClose }: Props) {
           </div>
           <div className="flex-1 overflow-y-auto p-5">
             {category === 'appearance' && <AppearanceSettings />}
+            {category === 'editor' && <EditorSettings />}
             {category === 'ai' && <AiSettings />}
             {category === 'plantuml' && <PlantUmlSettings />}
             {category === 'about' && <AboutSettings />}
