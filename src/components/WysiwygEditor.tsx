@@ -11,6 +11,7 @@ import { useSettingsStore } from '../store/useSettingsStore';
 import { useEffectiveEditorColorMode } from '../hooks/useEffectiveEditorColorMode';
 import { useCrepeThemeStylesheet } from '../hooks/useCrepeThemeStylesheet';
 import { getCodeBlockSyntaxExtension } from '../constants/codeBlockThemes';
+import { wysiwygPadInlineCss } from '../constants/wysiwygContentWidth';
 import { codeBlockRenderPreview, getDiagramCodeBlockLanguages } from './diagramRenderers';
 import { startWysiwygDiagramZoomObserver } from './diagramZoom';
 import { startWysiwygDiagramCopyObserver } from './diagramCopy';
@@ -31,6 +32,7 @@ export function WysiwygEditor({ content, onChange, scrollContainerRef, onCrepeRe
   const codeBlockThemeId = useSettingsStore((s) => s.codeBlockThemeId);
   const editorFontConfig = useSettingsStore((s) => s.editorFontConfig);
   const codeBlockFontConfig = useSettingsStore((s) => s.codeBlockFontConfig);
+  const wysiwygContentWidthPercent = useSettingsStore((s) => s.wysiwygContentWidthPercent);
   const effectiveColorMode = useEffectiveEditorColorMode();
 
   useCrepeThemeStylesheet(editorThemeId, effectiveColorMode);
@@ -114,6 +116,7 @@ export function WysiwygEditor({ content, onChange, scrollContainerRef, onCrepeRe
       style={{
         '--crepe-font-default': editorFontConfig.fontFamily,
         '--crepe-font-code': codeBlockFontConfig.fontFamily,
+        '--notez-wysiwyg-pad-inline': wysiwygPadInlineCss(wysiwygContentWidthPercent),
       } as React.CSSProperties}
     />
   );

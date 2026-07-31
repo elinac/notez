@@ -936,8 +936,14 @@ svg.plantuml-rust {
   display: none;
 }
 
-/* Milkdown editor font overrides via CSS variables */
+/* Milkdown editor font + WYSIWYG content width (Crepe padding override) */
 .wysiwyg-editor .milkdown .ProseMirror {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  padding-top: 60px;
+  padding-bottom: 60px;
+  padding-inline: var(--notez-wysiwyg-pad-inline, 120px);
   font-size: var(--notez-editor-font-size, 16px);
 }
 .wysiwyg-editor .milkdown .ProseMirror pre code {
