@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { useAppStore, isFileTab } from '../store/useAppStore';
 import { confirmAndCloseTabs } from '../utils/confirmCloseTabs';
@@ -9,7 +9,6 @@ type TabContextMenu = { x: number; y: number; tabId: string };
 export function TabBar() {
   const { tabs, activeTabId, switchTab } = useAppStore();
   const [contextMenu, setContextMenu] = useState<TabContextMenu | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -93,7 +92,6 @@ export function TabBar() {
 
       {contextMenu && (
         <div
-          ref={menuRef}
           data-native-context-menu
           className="fixed z-50 notez-panel border border-gray-200 rounded shadow-lg py-1 text-xs"
           style={{ left: contextMenu.x, top: contextMenu.y, minWidth: '130px' }}

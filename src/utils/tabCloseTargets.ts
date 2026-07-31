@@ -1,5 +1,4 @@
 import type { EditorTab } from '../store/useAppStore';
-import { isFileTab } from '../store/useAppStore';
 
 export type TabCloseAction = 'close' | 'others' | 'left' | 'right' | 'all';
 
@@ -30,7 +29,6 @@ export function getCloseTargetIds(
 
 export function countDirtyInTargets(tabs: EditorTab[], ids: string[]): number {
   const idSet = new Set(ids);
-  return tabs.filter(
-    (t) => idSet.has(t.id) && isFileTab(t) && t.file.isDirty,
-  ).length;
+  // EditorTab 目前仅 file 一种；直接读 file.isDirty，避免对 useAppStore 的值导入环依赖
+  return tabs.filter((t) => idSet.has(t.id) && t.file.isDirty).length;
 }

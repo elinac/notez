@@ -73,4 +73,42 @@ describe('confirmAndCloseTabs', () => {
     await confirmAndCloseTabs('others', 'b');
     expect(useAppStore.getState().tabs.map((t) => t.id)).toEqual(['a']);
   });
+
+  it('close dirty 取消 → 不关', async () => {
+    vi.mocked(confirmAction).mockResolvedValue(false);
+    await confirmAndCloseTabs('close', 'a');
+    expect(useAppStore.getState().tabs.map((t) => t.id)).toEqual(['a', 'b']);
+    expect(confirmAction).toHaveBeenCalled();
+  });
+
+  it('all 单 dirty tab 确认后换成新建标签', async () => {
+    const only = makeTab('only', true);
+    useAppStore.setState({
+      tabs: [only],
+      activeTabId: 'only',
+      currentFile: only.file,
+      content: only.content,
+      splitPaneRatioByTabId: { only: 0.5 },
+    });
+    vi.mocked(confirmAction).mockResolvedValue(true);
+    await confirmAndCloseTabs('all', 'only');
+    const s = useAppStore.getState();
+    expect(s.tabs).toHaveLength(1);
+    expect(s.tabs[0].id).not.toBe('only');
+    expect(s.currentFile.title).toBe('无标题');
+    expect(s.splitPaneRatioByTabId).toEqual({});
+    expect(confirmAction).toHaveBeenCalled();
+  });
+
+  it('all 无 dirty → 不确认并换成新建标签', async () => {
+    useAppStore.setState({
+      tabs: [makeTab('a'), makeTab('b')],
+      activeTabId: 'b',
+    });
+    await confirmAndCloseTabs('all', 'b');
+    const s = useAppStore.getState();
+    expect(confirmAction).not.toHaveBeenCalled();
+    expect(s.tabs).toHaveLength(1);
+    expect(s.currentFile.title).toBe('无标题');
+  });
 });

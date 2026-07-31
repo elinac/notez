@@ -292,7 +292,6 @@ export const useAppStore = create<AppState>()(
           set((state) => {
             const targetIds = getCloseTargetIds(state.tabs, 'others', tabId);
             if (targetIds.length === 0) return {};
-            if (!state.tabs.some((t) => t.id === tabId)) return {};
             const remove = new Set(targetIds);
             const newTabs = state.tabs.filter((t) => !remove.has(t.id));
             let splitPaneRatioByTabId = state.splitPaneRatioByTabId;
@@ -311,7 +310,6 @@ export const useAppStore = create<AppState>()(
           set((state) => {
             const targetIds = getCloseTargetIds(state.tabs, 'left', tabId);
             if (targetIds.length === 0) return {};
-            if (!state.tabs.some((t) => t.id === tabId)) return {};
             const remove = new Set(targetIds);
             const newTabs = state.tabs.filter((t) => !remove.has(t.id));
             let newActiveTabId = state.activeTabId;
@@ -332,7 +330,6 @@ export const useAppStore = create<AppState>()(
           set((state) => {
             const targetIds = getCloseTargetIds(state.tabs, 'right', tabId);
             if (targetIds.length === 0) return {};
-            if (!state.tabs.some((t) => t.id === tabId)) return {};
             const remove = new Set(targetIds);
             const newTabs = state.tabs.filter((t) => !remove.has(t.id));
             let newActiveTabId = state.activeTabId;
