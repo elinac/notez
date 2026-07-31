@@ -54,17 +54,22 @@ export function SavePromptHost() {
         className="absolute inset-0 bg-black/40"
         onClick={() => finish('cancel')}
       />
-      <div className="relative bg-white dark:bg-gray-900 rounded-lg shadow-2xl p-6 min-w-[320px] max-w-[90vw]">
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="relative bg-white dark:bg-gray-900 rounded-lg shadow-2xl p-6 min-w-[320px] max-w-[90vw]"
+      >
         <p className="text-sm text-gray-800 dark:text-gray-100 mb-6">
           {open.message}
         </p>
         <div className="flex justify-end gap-2">
           <button
             type="button"
-            onClick={() => finish('cancel')}
-            className="px-3 py-1.5 text-xs rounded border border-gray-300 text-gray-700 hover:bg-gray-100"
+            autoFocus
+            onClick={() => finish('save')}
+            className="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-700"
           >
-            取消
+            保存
           </button>
           <button
             type="button"
@@ -75,10 +80,10 @@ export function SavePromptHost() {
           </button>
           <button
             type="button"
-            onClick={() => finish('save')}
-            className="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-700"
+            onClick={() => finish('cancel')}
+            className="px-3 py-1.5 text-xs rounded border border-gray-300 text-gray-700 hover:bg-gray-100"
           >
-            保存
+            取消
           </button>
         </div>
       </div>

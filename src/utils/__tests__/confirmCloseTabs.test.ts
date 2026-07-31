@@ -50,7 +50,7 @@ describe('confirmAndCloseTabs', () => {
     expect(useAppStore.getState().tabs.map((t) => t.id)).toEqual(['b']);
   });
 
-  it('无 dirty → 不弹确认并关闭', async () => {
+  it('无 dirty → resolve([]) 后关闭', async () => {
     useAppStore.setState({
       tabs: [makeTab('a'), makeTab('b')],
       activeTabId: 'b',
@@ -101,7 +101,7 @@ describe('confirmAndCloseTabs', () => {
     expect(resolveUnsavedTabs).toHaveBeenCalledWith([only]);
   });
 
-  it('all 无 dirty → 不确认并换成新建标签', async () => {
+  it('all 无 dirty → resolve([]) 后换成新建标签', async () => {
     useAppStore.setState({
       tabs: [makeTab('a'), makeTab('b')],
       activeTabId: 'b',
