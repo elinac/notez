@@ -98,6 +98,8 @@ export interface PersistedSettings {
   codeBlockFontConfig?: FontConfig;
   /** 全屏（WYSIWYG）内容宽度百分比，50–100，默认 100 */
   wysiwygContentWidthPercent?: number;
+  /** 未保存标签页自动保存，默认 false */
+  autoSaveEnabled?: boolean;
 }
 
 export async function loadSettings(): Promise<PersistedSettings | null> {
@@ -151,6 +153,7 @@ interface SettingsState {
   editorFontConfig: FontConfig;
   codeBlockFontConfig: FontConfig;
   wysiwygContentWidthPercent: number;
+  autoSaveEnabled: boolean;
   systemFonts: string[];
   /** Whether initial settings have been loaded from disk */
   loaded: boolean;
@@ -171,6 +174,7 @@ interface SettingsState {
   setWysiwygContentWidthPercent: (n: number) => void;
   /** 将当前设置（含内容宽度）写入磁盘 */
   persistWysiwygContentWidthPercent: () => void;
+  setAutoSaveEnabled: (enabled: boolean) => void;
   loadSystemFonts: () => Promise<void>;
   getActiveConfig: () => AiProviderConfig | null;
   /** Load settings from disk (call once on app init) */
@@ -190,12 +194,17 @@ function persist(state: SettingsState) {
     editorFontConfig: state.editorFontConfig,
     codeBlockFontConfig: state.codeBlockFontConfig,
     wysiwygContentWidthPercent: state.wysiwygContentWidthPercent,
+    autoSaveEnabled: state.autoSaveEnabled,
   });
 }
 
 /** 与 `initSettings` / 持久化一致；仅 `'rust'` 精确匹配为 Rust，其余均回落为 JAR。 */
 export function normalizePlantUmlBackend(raw: unknown): PlantUmlBackend {
   return raw === 'rust' ? 'rust' : DEFAULT_PLANTUML_BACKEND;
+}
+
+export function normalizeAutoSaveEnabled(raw: unknown): boolean {
+  return raw === true;
 }
 
 export const useSettingsStore = create<SettingsState>()((set, get) => ({
@@ -210,6 +219,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   editorFontConfig: DEFAULT_EDITOR_FONT,
   codeBlockFontConfig: DEFAULT_CODE_FONT,
   wysiwygContentWidthPercent: WYSIWYG_CONTENT_WIDTH_DEFAULT,
+  autoSaveEnabled: false,
   systemFonts: [],
   loaded: false,
 
@@ -282,6 +292,11 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     persist(get());
   },
 
+  setAutoSaveEnabled: (enabled) => {
+    set({ autoSaveEnabled: enabled });
+    persist(get());
+  },
+
   loadSystemFonts: async () => {
     if (get().systemFonts.length > 0) return;
     if (!isTauri()) return;
@@ -324,6 +339,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
         wysiwygContentWidthPercent: normalizeWysiwygContentWidthPercent(
           saved.wysiwygContentWidthPercent,
         ),
+        autoSaveEnabled: normalizeAutoSaveEnabled(saved.autoSaveEnabled),
         loaded: true,
       });
     } else {
