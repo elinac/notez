@@ -25,6 +25,7 @@ import {
 import "./App.css";
 import { consumePlantUmlFixPayload } from "./components/plantuml-offline/plantumlErrorUi";
 import { resolveWorkspaceDirFromFilePath } from "./utils/workspacePath";
+import { confirmAndCloseTabs } from './utils/confirmCloseTabs';
 
 function App() {
   const {
@@ -288,8 +289,10 @@ function App() {
         }
       } else if (e.key === 'w') {
         e.preventDefault();
-        const { tabs: tabList, activeTabId: aid, closeTab } = useAppStore.getState();
-        if (tabList.length > 1) closeTab(aid);
+        const { tabs: tabList, activeTabId: aid } = useAppStore.getState();
+        if (tabList.length > 1) {
+          void confirmAndCloseTabs('close', aid);
+        }
       } else if (e.key === ',') {
         e.preventDefault();
         useAppStore.getState().toggleSettingsDialog();
