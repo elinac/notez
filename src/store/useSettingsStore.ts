@@ -22,6 +22,10 @@ import {
   normalizeCodeBlockThemeId,
 } from '../constants/codeBlockThemes';
 import { DEFAULT_PLANTUML_THEME } from '../constants/plantumlThemes';
+import {
+  WYSIWYG_CONTENT_WIDTH_DEFAULT,
+  normalizeWysiwygContentWidthPercent,
+} from '../constants/wysiwygContentWidth';
 
 export type AiProvider = 'openai' | 'anthropic' | 'custom';
 
@@ -92,6 +96,8 @@ export interface PersistedSettings {
   uiFontConfig?: FontConfig;
   editorFontConfig?: FontConfig;
   codeBlockFontConfig?: FontConfig;
+  /** 全屏（WYSIWYG）内容宽度百分比，50–100，默认 100 */
+  wysiwygContentWidthPercent?: number;
 }
 
 export async function loadSettings(): Promise<PersistedSettings | null> {
@@ -144,6 +150,7 @@ interface SettingsState {
   uiFontConfig: FontConfig;
   editorFontConfig: FontConfig;
   codeBlockFontConfig: FontConfig;
+  wysiwygContentWidthPercent: number;
   systemFonts: string[];
   /** Whether initial settings have been loaded from disk */
   loaded: boolean;
@@ -160,6 +167,10 @@ interface SettingsState {
   setUiFontConfig: (config: FontConfig) => void;
   setEditorFontConfig: (config: FontConfig) => void;
   setCodeBlockFontConfig: (config: FontConfig) => void;
+  /** 仅更新内存，不写盘（供滑块拖动） */
+  setWysiwygContentWidthPercent: (n: number) => void;
+  /** 将当前设置（含内容宽度）写入磁盘 */
+  persistWysiwygContentWidthPercent: () => void;
   loadSystemFonts: () => Promise<void>;
   getActiveConfig: () => AiProviderConfig | null;
   /** Load settings from disk (call once on app init) */
@@ -178,6 +189,7 @@ function persist(state: SettingsState) {
     uiFontConfig: state.uiFontConfig,
     editorFontConfig: state.editorFontConfig,
     codeBlockFontConfig: state.codeBlockFontConfig,
+    wysiwygContentWidthPercent: state.wysiwygContentWidthPercent,
   });
 }
 
@@ -197,6 +209,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   uiFontConfig: DEFAULT_UI_FONT,
   editorFontConfig: DEFAULT_EDITOR_FONT,
   codeBlockFontConfig: DEFAULT_CODE_FONT,
+  wysiwygContentWidthPercent: WYSIWYG_CONTENT_WIDTH_DEFAULT,
   systemFonts: [],
   loaded: false,
 
@@ -261,6 +274,14 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   setEditorFontConfig: (config) => { set({ editorFontConfig: config }); persist(get()); },
   setCodeBlockFontConfig: (config) => { set({ codeBlockFontConfig: config }); persist(get()); },
 
+  setWysiwygContentWidthPercent: (n) => {
+    set({ wysiwygContentWidthPercent: normalizeWysiwygContentWidthPercent(n) });
+  },
+
+  persistWysiwygContentWidthPercent: () => {
+    persist(get());
+  },
+
   loadSystemFonts: async () => {
     if (get().systemFonts.length > 0) return;
     if (!isTauri()) return;
@@ -300,6 +321,9 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
         uiFontConfig: saved.uiFontConfig ?? DEFAULT_UI_FONT,
         editorFontConfig: saved.editorFontConfig ?? DEFAULT_EDITOR_FONT,
         codeBlockFontConfig: saved.codeBlockFontConfig ?? DEFAULT_CODE_FONT,
+        wysiwygContentWidthPercent: normalizeWysiwygContentWidthPercent(
+          saved.wysiwygContentWidthPercent,
+        ),
         loaded: true,
       });
     } else {
