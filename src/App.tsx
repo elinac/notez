@@ -34,8 +34,10 @@ import "./App.css";
 import { consumePlantUmlFixPayload } from "./components/plantuml-offline/plantumlErrorUi";
 import { resolveWorkspaceDirFromFilePath } from "./utils/workspacePath";
 import { confirmAndCloseTabs } from './utils/confirmCloseTabs';
+import { useUnsavedExitGuard } from './hooks/useUnsavedExitGuard';
 
 function App() {
+  useUnsavedExitGuard();
   const {
     currentFile, content,
     activeTabId,
